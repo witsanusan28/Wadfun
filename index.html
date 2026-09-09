@@ -79,4 +79,4 @@ function parent(){document.getElementById('count').textContent=JSON.parse(localS
 function esc(s){return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function setLang(l){lang=l;document.documentElement.lang=l;document.getElementById('thaiBtn').classList.toggle('on',l==='th');document.getElementById('engBtn').classList.toggle('on',l==='en')}
 renderCategories();renderPens();renderColors();pickColor(selectedColor);
-</script></body></html>
+</script><script src="pen-engine.js"></script></body></html>
