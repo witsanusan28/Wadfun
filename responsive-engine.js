@@ -1,4 +1,4 @@
-/* Wadfun Responsive Workspace V6 — locked toolbar + persistent selected color */
+/* Wadfun Responsive Workspace V7 — clean canvas, locked toolbar, persistent color */
 (function(){
 'use strict';
 const $=id=>document.getElementById(id);
@@ -18,6 +18,7 @@ function syncSelectedColor(){
  document.querySelectorAll('.colorMini').forEach(el=>{el.style.setProperty('background-color',c,'important');el.style.setProperty('background',c,'important')});
  const btn=$('drawDot')?.closest('button');if(btn){btn.dataset.selectedColor=c;btn.setAttribute('aria-label','สีที่เลือก '+c)}
 }
+function cleanHint(){document.querySelectorAll('.floatHint').forEach(el=>{el.style.display='none'});}
 function sync(){
  const on=workspaceOn();
  document.documentElement.classList.toggle('wadfun-workspace',on);document.body.classList.toggle('wadfun-workspace',on);
@@ -32,7 +33,7 @@ function sync(){
   if(view){view.style.width='100%';view.style.height='100%'}
   if(layer){layer.style.width='100%';layer.style.height='100%';layer.style.display='flex';layer.style.alignItems='center';layer.style.justifyContent='center'}
  });
- syncSelectedColor();
+ cleanHint();syncSelectedColor();
 }
 function fitInitialCanvas(id,viewportId){
  const c=$(id),v=$(viewportId);if(!c||!v||c.dataset.fitted==='1')return;
@@ -43,16 +44,16 @@ function fitInitialCanvas(id,viewportId){
 }
 function fitAfterShow(){sync();requestAnimationFrame(()=>{sync();fitInitialCanvas('drawCanvas','drawViewport');fitInitialCanvas('colorCanvas','colorViewport')})}
 function hookColorPicker(){
- if(typeof window.pickColor==='function'&&!window.pickColor.__wadfunV6){const old=window.pickColor;const wrapped=function(c){const r=old.apply(this,arguments);setTimeout(syncSelectedColor,0);return r};wrapped.__wadfunV6=true;window.pickColor=wrapped}
- if(typeof window.setHue==='function'&&!window.setHue.__wadfunV6){const old=window.setHue;const wrapped=function(){const r=old.apply(this,arguments);setTimeout(syncSelectedColor,0);return r};wrapped.__wadfunV6=true;window.setHue=wrapped}
- if(typeof window.setShade==='function'&&!window.setShade.__wadfunV6){const old=window.setShade;const wrapped=function(){const r=old.apply(this,arguments);setTimeout(syncSelectedColor,0);return r};wrapped.__wadfunV6=true;window.setShade=wrapped}
+ if(typeof window.pickColor==='function'&&!window.pickColor.__wadfunV7){const old=window.pickColor;const wrapped=function(c){const r=old.apply(this,arguments);setTimeout(syncSelectedColor,0);return r};wrapped.__wadfunV7=true;window.pickColor=wrapped}
+ if(typeof window.setHue==='function'&&!window.setHue.__wadfunV7){const old=window.setHue;const wrapped=function(){const r=old.apply(this,arguments);setTimeout(syncSelectedColor,0);return r};wrapped.__wadfunV7=true;window.setHue=wrapped}
+ if(typeof window.setShade==='function'&&!window.setShade.__wadfunV7){const old=window.setShade;const wrapped=function(){const r=old.apply(this,arguments);setTimeout(syncSelectedColor,0);return r};wrapped.__wadfunV7=true;window.setShade=wrapped}
 }
 window.addEventListener('resize',()=>{clearTimeout(window.__wadResize);window.__wadResize=setTimeout(sync,80)},{passive:true});
 window.addEventListener('orientationchange',()=>setTimeout(sync,180),{passive:true});
 window.addEventListener('pageshow',fitAfterShow,{passive:true});
 const obs=new MutationObserver(()=>{sync();requestAnimationFrame(()=>{fitInitialCanvas('drawCanvas','drawViewport');fitInitialCanvas('colorCanvas','colorViewport')})});
 obs.observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['class']});
-setInterval(()=>{hookColorPicker();syncSelectedColor()},150);
+setInterval(()=>{hookColorPicker();syncSelectedColor();cleanHint()},150);
 setTimeout(fitAfterShow,0);setTimeout(fitAfterShow,250);
-window.wadfunResponsiveV6={sync,fitAfterShow,syncSelectedColor};
+window.wadfunResponsiveV7={sync,fitAfterShow,syncSelectedColor};
 })();
