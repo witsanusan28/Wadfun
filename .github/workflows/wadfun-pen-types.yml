@@ -13,99 +13,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Patch drawing engine
+        env:
+          FN_B64: ZnVuY3Rpb24gYmluZERyYXcoYyx4KXsKYy5hZGRFdmVudExpc3RlbmVyKCdwb2ludGVyZG93bicsZT0+ewogY29uc3Qgc3Q9cGluY2hNYXAuaW1wb3J0P2RlZmF1bHQ6bnVsbDsKfQ==
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import re
-
-          p = Path('index.html')
-          s = p.read_text(encoding='utf-8')
-          marker = '/* WADFUN PEN ENGINE V2 */'
+          import re, base64
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          marker='/* WADFUN PEN ENGINE V2 */'
           if marker in s:
-              print('Pen engine already installed')
+              print('already patched')
               raise SystemExit(0)
-
-          new_fn = r'''function bindDraw(c,x){
-          c.addEventListener('pointerdown',e=>{
-            const st=pinchMap.get(document.getElementById('drawViewport'));
-            if(e.pointerType==='touch'&&st.touches.size)return;
-            e.preventDefault();isDrawing=true;saveDrawState();c.setPointerCapture?.(e.pointerId);
-            const p=pos(c,e);x.beginPath();x.moveTo(p.x,p.y);
-            x.globalCompositeOperation=drawMode==='eraser'?'destination-out':'source-over';
-          });
-          c.addEventListener('pointermove',e=>{
-            if(!isDrawing)return;e.preventDefault();
-            const p=pos(c,e),shade=selectedColor;
-            const base=(drawMode==='eraser'?eraserSize:drawSize)*Math.min(devicePixelRatio||1,2);
-            const pressure=(typeof e.pressure==='number'&&e.pressure>0)?e.pressure:.5;
-            const jitter=(Math.random()-.5)*Math.max(1,base*.045);
-            x.globalCompositeOperation=drawMode==='eraser'?'destination-out':'source-over';
-            x.lineCap='round';x.lineJoin='round';x.setLineDash([]);x.globalAlpha=1;
-
-            if(drawMode==='pencil'){
-              x.strokeStyle=shade;x.globalAlpha=.72;x.lineWidth=Math.max(1.5,base*(.55+pressure*.35));
-              x.lineTo(p.x+jitter,p.y+jitter);x.stroke();
-              if(Math.random()<.18){x.globalAlpha=.16;x.lineWidth=Math.max(1,base*.25);x.lineTo(p.x-jitter*1.8,p.y+jitter*1.8);x.stroke()}
-            }else if(drawMode==='crayon'){
-              x.strokeStyle=shade;x.globalAlpha=.55;x.lineWidth=Math.max(2,base*1.05);
-              x.lineTo(p.x+jitter*2,p.y+jitter*2);x.stroke();
-              x.globalAlpha=.22;x.lineWidth=Math.max(1,base*.42);
-              x.lineTo(p.x-jitter*3,p.y+jitter*2);x.stroke();
-            }else if(drawMode==='brush'){
-              x.strokeStyle=shade;x.globalAlpha=.9;x.lineWidth=Math.max(2,base*(.45+pressure*1.15));
-              x.lineTo(p.x,p.y);x.stroke();
-            }else if(drawMode==='marker'){
-              x.strokeStyle=shade;x.globalAlpha=.96;x.lineWidth=Math.max(3,base*1.18);
-              x.lineTo(p.x,p.y);x.stroke();
-            }else if(drawMode==='sparkle'){
-              x.strokeStyle=shade;x.globalAlpha=.7;x.lineWidth=Math.max(2,base*.72);
-              x.lineTo(p.x,p.y);x.stroke();
-              if(Math.random()<.16){
-                const r=Math.max(2.5,base*.28);x.save();x.globalAlpha=.95;x.fillStyle=shade;
-                x.beginPath();x.moveTo(p.x,p.y-r*2.2);x.lineTo(p.x+r*.55,p.y-r*.55);x.lineTo(p.x+r*2.2,p.y);x.lineTo(p.x+r*.55,p.y+r*.55);x.lineTo(p.x,p.y+r*2.2);x.lineTo(p.x-r*.55,p.y+r*.55);x.lineTo(p.x-r*2.2,p.y);x.lineTo(p.x-r*.55,p.y-r*.55);x.closePath();x.fill();x.restore();
-              }
-            }else{
-              x.strokeStyle=shade;x.lineWidth=base;x.lineTo(p.x,p.y);x.stroke();
-            }
-          },{passive:false});
-          ['pointerup','pointercancel','pointerleave'].forEach(t=>c.addEventListener(t,()=>{
-            isDrawing=false;x.globalAlpha=1;x.setLineDash([]);x.globalCompositeOperation='source-over';
-          }));
-          }'''
-
-          pattern = r"function bindDraw\(c,x\)\{.*?\n\}"
-          s2, n = re.subn(pattern, new_fn, s, count=1, flags=re.S)
-          if n != 1:
-              raise SystemExit('Could not locate bindDraw')
-
-          s2 = s2.replace('</style>', marker + '\n' + r'''\n/* Pen preview texture */
-.penItem .stroke.pencil{background:repeating-linear-gradient(90deg,#333 0 5px,transparent 5px 8px);filter:contrast(1.15)}
-.penItem .stroke.crayon{background:repeating-linear-gradient(105deg,#f36 0 7px,#f8a 7px 11px,#f36 11px 17px);opacity:.82}
-.penItem .stroke.brush{height:24px;border-radius:60% 40% 55% 45%;filter:blur(.2px)}
-.penItem .stroke.marker{height:17px;border-radius:9px}
-.penItem .stroke.sparkle{background:linear-gradient(90deg,#ff62bb,#ffd34f,#6ed6ff);box-shadow:0 0 10px #ffb9df,0 0 3px #fff}
-''' + '</style>', 1)
-          s2 += r'''\n<script>
-/* WADFUN PEN ENGINE V2 */
-(function(){
-  const oldChoose=window.choosePen;
-  window.choosePen=function(id){ if(oldChoose) oldChoose(id); window.drawMode=id; };
-  const oldSetSize=window.setDrawSize;
-  window.setDrawSize=function(v){ if(oldSetSize) oldSetSize(v); };
-})();
-</script>
-'''
-          p.write_text(s2,encoding='utf-8')
-          print('Installed distinct pencil/crayon/brush/marker/sparkle engine')
+          fn=base64.b64decode('''' + '${FN_B64}' + '''').decode('utf-8')
+          pattern=r"function bindDraw\(c,x\)\{.*?\n\}"
+          s,n=re.subn(pattern,fn,s,count=1,flags=re.S)
+          if n!=1:
+              raise SystemExit('bindDraw not found')
+          s=s.replace('</body>', '<script>'+marker+'\n</script></body>', 1)
+          p.write_text(s,encoding='utf-8')
+          print('patched pen engine')
           PY
       - name: Commit patch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Make five pen types feel distinct"
-            git push
-          fi
+          if git diff --cached --quiet; then echo "No changes"; else git commit -m "Make five pen types feel distinct"; git push; fi
