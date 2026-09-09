@@ -1,13 +1,82 @@
-/* Wadfun pen rendering engine V8
-   Draw เป็นฐาน interaction กลาง: นิ้ว / mouse / Apple Pencil / pinch
+/* Wadfun Pen Engine V10
+   ระบบสัมผัสใหม่: 1 นิ้ว = วาด, 2 นิ้ว = ซูม
+   ไม่มี pointer capture สำหรับนิ้ว และไม่มี dependency จากตัวแปรภายนอกที่ทำให้ engine ล้ม
 */
-function wadfunCorePoint(c,clientX,clientY){return window.WadfunCanvasCore?.pointFromClient(c,clientX,clientY)||(()=>{const r=c.getBoundingClientRect();return{x:(clientX-r.left)*c.width/r.width,y:(clientY-r.top)*c.height/r.height}})();}
-function wadfunCurrentDrawColor(){const el=document.getElementById('drawDot')||document.getElementById('colorDot');const m=el&&getComputedStyle(el).backgroundColor.match(/\d+(?:\.\d+)?/g);return m&&m.length>=3?'#'+m.slice(0,3).map(v=>Math.round(+v).toString(16).padStart(2,'0')).join(''):(typeof selectedColor!=='undefined'?selectedColor:'#e53935');}
-function wadfunStrokePoint(c,x,p){const shade=wadfunCurrentDrawColor();const base=(drawMode==='eraser'?eraserSize:drawSize)*Math.min(devicePixelRatio||1,2);x.globalCompositeOperation=drawMode==='eraser'?'destination-out':'source-over';x.lineCap='round';x.lineJoin='round';x.setLineDash([]);x.globalAlpha=1;if(drawMode==='pencil'){x.strokeStyle=shade;x.globalAlpha=.72;x.lineWidth=Math.max(1.5,base*.72);x.lineTo(p.x,p.y);x.stroke()}else if(drawMode==='crayon'){x.strokeStyle=shade;x.globalAlpha=.55;x.lineWidth=Math.max(2,base*1.05);x.lineTo(p.x,p.y);x.stroke()}else if(drawMode==='brush'){x.strokeStyle=shade;x.globalAlpha=.9;x.lineWidth=Math.max(2,base*.9);x.lineTo(p.x,p.y);x.stroke()}else if(drawMode==='marker'){x.strokeStyle=shade;x.globalAlpha=.96;x.lineWidth=Math.max(3,base*1.18);x.lineTo(p.x,p.y);x.stroke()}else if(drawMode==='sparkle'){x.strokeStyle=shade;x.globalAlpha=.7;x.lineWidth=Math.max(2,base*.72);x.lineTo(p.x,p.y);x.stroke()}else{x.strokeStyle=shade;x.lineWidth=base;x.lineTo(p.x,p.y);x.stroke()}}
-function wadfunTouchPos(c,t){return wadfunCorePoint(c,t.clientX,t.clientY)}
-function wadfunPointerPos(c,e){return wadfunCorePoint(c,e.clientX,e.clientY)}
-function bindDraw(c,x){c.addEventListener('pointerdown',e=>{if(e.pointerType==='touch')return;e.preventDefault();isDrawing=true;saveDrawState();c.setPointerCapture?.(e.pointerId);const p=wadfunPointerPos(c,e);x.beginPath();x.moveTo(p.x,p.y);x.globalCompositeOperation=drawMode==='eraser'?'destination-out':'source-over'});c.addEventListener('pointermove',e=>{if(e.pointerType==='touch'||!isDrawing)return;e.preventDefault();wadfunStrokePoint(c,x,wadfunPointerPos(c,e))},{passive:false});['pointerup','pointercancel'].forEach(t=>c.addEventListener(t,e=>{if(e.pointerType==='touch')return;isDrawing=false;x.globalAlpha=1;x.setLineDash([]);x.globalCompositeOperation='source-over'}));c.addEventListener('touchstart',e=>{if(e.touches.length!==1){isDrawing=false;return}e.preventDefault();isDrawing=true;saveDrawState();const p=wadfunTouchPos(c,e.touches[0]);x.beginPath();x.moveTo(p.x,p.y);x.globalCompositeOperation=drawMode==='eraser'?'destination-out':'source-over'},{passive:false});c.addEventListener('touchmove',e=>{if(e.touches.length!==1||!isDrawing)return;e.preventDefault();wadfunStrokePoint(c,x,wadfunTouchPos(c,e.touches[0]))},{passive:false});['touchend','touchcancel'].forEach(t=>c.addEventListener(t,()=>{isDrawing=false;x.globalAlpha=1;x.setLineDash([]);x.globalCompositeOperation='source-over'},{passive:false}))}
-window.pinchZoom=function(view,layer,type){const st={touches:new Map(),startDist:0,startScale:1,scale:1};pinchMap.set(view,st);window.wadfunPinchStates=window.wadfunPinchStates||{};window.wadfunPinchStates[type]=st;const syncTouches=e=>{st.touches.clear();for(const t of e.touches)st.touches.set(t.identifier,{x:t.clientX,y:t.clientY})};view.addEventListener('touchstart',e=>{syncTouches(e);if(st.touches.size===2){isDrawing=false;st.startDist=dist([...st.touches.values()]);st.startScale=st.scale;window.wadfunZoomUI?.update(type,st.scale)}e.preventDefault()},{passive:false});view.addEventListener('touchmove',e=>{syncTouches(e);if(st.touches.size<2)return;e.preventDefault();const d=dist([...st.touches.values()]);if(st.startDist){const raw=st.startScale*d/st.startDist;st.scale=window.WadfunCanvasCore?.clampZoom(raw)||Math.max(1,Math.min(3,raw));layer.style.transform=`scale(${st.scale})`;window.wadfunZoomUI?.update(type,st.scale)}},{passive:false});['touchend','touchcancel'].forEach(t=>view.addEventListener(t,e=>{syncTouches(e);if(st.touches.size<2)st.startDist=0},{passive:false}))};
+(function(){
+'use strict';
 
-/* Color เรียกตัวนี้แทนการสร้างระบบ touch ใหม่ */
-window.wadfunBindTapCanvas=function(c,view,layer,type,onTap){if(!c||!view||!layer||c.dataset.wadfunTapBound)return;c.dataset.wadfunTapBound='1';window.pinchZoom(view,layer,type);let sx=0,sy=0,st=0,active=false,multi=false;const moved=(x,y)=>Math.hypot(x-sx,y-sy)>12;c.addEventListener('touchstart',e=>{if(e.touches.length!==1){active=false;multi=true;return}const t=e.touches[0];sx=t.clientX;sy=t.clientY;st=Date.now();active=true;multi=false;e.preventDefault()},{passive:false});c.addEventListener('touchmove',e=>{if(e.touches.length!==1){active=false;multi=true;return}const t=e.touches[0];if(moved(t.clientX,t.clientY))active=false},{passive:false});c.addEventListener('touchend',e=>{const t=e.changedTouches[0];const ok=active&&!multi&&(Date.now()-st<=500)&&t&&!moved(t.clientX,t.clientY);active=false;if(ok)onTap(t.clientX,t.clientY)},{passive:false});c.addEventListener('touchcancel',()=>{active=false;multi=true},{passive:false});c.addEventListener('pointerdown',e=>{if(e.pointerType==='touch')return;e.preventDefault();onTap(e.clientX,e.clientY)},true)};
+function point(c,x,y){
+ const r=c.getBoundingClientRect();
+ return {x:(x-r.left)*c.width/r.width,y:(y-r.top)*c.height/r.height};
+}
+function color(){
+ const el=document.getElementById('drawDot')||document.getElementById('colorDot');
+ const m=el&&getComputedStyle(el).backgroundColor.match(/\d+(?:\.\d+)?/g);
+ return m&&m.length>=3?'#'+m.slice(0,3).map(v=>Math.round(+v).toString(16).padStart(2,'0')).join(''):'#e53935';
+}
+function stroke(ctx,p){
+ const mode=typeof drawMode!=='undefined'?drawMode:'pencil';
+ const base=((mode==='eraser'?(typeof eraserSize!=='undefined'?eraserSize:30):(typeof drawSize!=='undefined'?drawSize:8)))*Math.min(devicePixelRatio||1,2);
+ ctx.globalCompositeOperation=mode==='eraser'?'destination-out':'source-over';
+ ctx.globalAlpha=mode==='pencil'?.72:mode==='crayon'?.55:mode==='brush'?.9:mode==='marker'?.96:mode==='sparkle'?.7:1;
+ ctx.strokeStyle=color();
+ ctx.lineWidth=Math.max(1.5,base*(mode==='crayon'?1.05:mode==='brush'?.9:mode==='marker'?1.18:.72));
+ ctx.lineCap='round';ctx.lineJoin='round';ctx.lineTo(p.x,p.y);ctx.stroke();
+}
+function finish(ctx){ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';ctx.setLineDash([])}
+
+function installDraw(){
+ const c=document.getElementById('drawCanvas'),v=document.getElementById('drawViewport'),z=document.getElementById('drawZoom');
+ if(!c||!v||!z||c.dataset.penV10)return false;c.dataset.penV10='1';
+ const ctx=c.getContext('2d');let drawing=false,lastTouch=null;
+ function begin(x,y){
+  if(typeof saveDrawState==='function')saveDrawState();
+  drawing=true;lastTouch=point(c,x,y);ctx.beginPath();ctx.moveTo(lastTouch.x,lastTouch.y);
+ }
+ function move(x,y){if(!drawing)return;const p=point(c,x,y);stroke(ctx,p);lastTouch=p}
+ function end(){if(!drawing)return;drawing=false;lastTouch=null;finish(ctx)}
+ c.addEventListener('touchstart',e=>{
+  if(e.touches.length!==1){end();return}
+  const t=e.touches[0];e.preventDefault();begin(t.clientX,t.clientY);
+ },{passive:false});
+ c.addEventListener('touchmove',e=>{
+  if(e.touches.length!==1){end();return}
+  const t=e.touches[0];e.preventDefault();move(t.clientX,t.clientY);
+ },{passive:false});
+ c.addEventListener('touchend',e=>{e.preventDefault();end()},{passive:false});
+ c.addEventListener('touchcancel',end,{passive:false});
+ c.addEventListener('pointerdown',e=>{if(e.pointerType==='touch')return;e.preventDefault();begin(e.clientX,e.clientY)},true);
+ c.addEventListener('pointermove',e=>{if(e.pointerType==='touch')return;if(drawing){e.preventDefault();move(e.clientX,e.clientY)}},{passive:false});
+ c.addEventListener('pointerup',e=>{if(e.pointerType!=='touch')end()});
+ c.addEventListener('pointercancel',e=>{if(e.pointerType!=='touch')end()});
+ installPinch(v,z,'draw');
+ return true;
+}
+
+function installPinch(view,layer,type){
+ if(!view||!layer||view.dataset.pinchV10)return;view.dataset.pinchV10='1';
+ let scale=1,startDist=0,startScale=1,active=false;
+ const distance=()=>{const a=[...activeTouches];return a.length<2?0:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)};
+ const activeTouches=[];
+ const sync=e=>{activeTouches.length=0;for(const t of e.touches)activeTouches.push({x:t.clientX,y:t.clientY})};
+ const apply=s=>{scale=Math.max(1,Math.min(3,s));layer.style.transform=`scale(${scale})`;if(type==='draw')window.scaleDraw=scale;else window.scaleColor=scale;window.wadfunZoomUI?.update(type,scale)};
+ view.addEventListener('touchstart',e=>{sync(e);if(activeTouches.length===2){startDist=distance();startScale=scale;active=true;e.preventDefault()}},{passive:false});
+ view.addEventListener('touchmove',e=>{sync(e);if(activeTouches.length===2&&active&&startDist){const d=distance();if(d){apply(startScale*d/startDist);e.preventDefault()}}},{passive:false});
+ const end=e=>{sync(e);if(activeTouches.length<2){startDist=0;active=false}};
+ view.addEventListener('touchend',end,{passive:false});view.addEventListener('touchcancel',end,{passive:false});
+}
+
+window.pinchZoom=installPinch;
+window.wadfunBindTapCanvas=function(c,view,layer,type,onTap){
+ if(!c||!view||!layer||c.dataset.wadfunTapV10)return;c.dataset.wadfunTapV10='1';
+ installPinch(view,layer,type);
+ let sx=0,sy=0,active=false,multi=false;
+ c.addEventListener('touchstart',e=>{if(e.touches.length!==1){active=false;multi=true;return}const t=e.touches[0];sx=t.clientX;sy=t.clientY;active=true;multi=false;e.preventDefault()},{passive:false});
+ c.addEventListener('touchmove',e=>{if(e.touches.length!==1){active=false;multi=true;return}const t=e.touches[0];if(Math.hypot(t.clientX-sx,t.clientY-sy)>12)active=false},{passive:false});
+ c.addEventListener('touchend',e=>{const t=e.changedTouches[0];const ok=active&&!multi&&t&&Math.hypot(t.clientX-sx,t.clientY-sy)<=12;active=false;if(ok)onTap(t.clientX,t.clientY)},{passive:false});
+ c.addEventListener('touchcancel',()=>{active=false;multi=true},{passive:false});
+ c.addEventListener('pointerdown',e=>{if(e.pointerType==='touch')return;e.preventDefault();onTap(e.clientX,e.clientY)},true);
+};
+
+const timer=setInterval(()=>{if(document.getElementById('drawCanvas')&&installDraw())clearInterval(timer)},100);
+})();
