@@ -1,6 +1,7 @@
-/* Wadfun pen rendering engine V4
+/* Wadfun pen rendering engine V5
    ปากกาวาดด้วย 1 นิ้ว / Apple Pencil ได้ต่อเนื่อง
-   2 นิ้วสงวนไว้สำหรับ pinch zoom เท่านั้น */
+   2 นิ้วสงวนไว้สำหรับ pinch zoom เท่านั้น
+   แก้จุดสำคัญ: pinch layer ห้ามแย่ง pointer capture จาก canvas */
 function wadfunCurrentDrawColor(){
   const el=document.getElementById('drawDot')||document.getElementById('colorDot');
   const m=el&&getComputedStyle(el).backgroundColor.match(/\d+(?:\.\d+)?/g);
@@ -32,3 +33,40 @@ function bindDraw(c,x){
   },{passive:false});
   ['pointerup','pointercancel'].forEach(t=>c.addEventListener(t,()=>{isDrawing=false;x.globalAlpha=1;x.setLineDash([]);x.globalCompositeOperation='source-over'}));
 }
+
+/* V5: override the inline pinch handler before initDraw() is ever called.
+   The viewport must observe the touch, but must NOT call setPointerCapture,
+   because that steals the finger stream from the canvas that is drawing. */
+window.pinchZoom=function(view,layer,type){
+  const st={touches:new Map(),startDist:0,startScale:1,scale:1};
+  pinchMap.set(view,st);
+  window.wadfunPinchStates=window.wadfunPinchStates||{};
+  window.wadfunPinchStates[type]=st;
+  view.addEventListener('pointerdown',e=>{
+    if(e.pointerType!=='touch')return;
+    st.touches.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(st.touches.size===2){
+      isDrawing=false;
+      st.startDist=dist([...st.touches.values()]);
+      st.startScale=st.scale;
+      window.wadfunZoomUI?.update(type,st.scale);
+    }
+  });
+  view.addEventListener('pointermove',e=>{
+    if(e.pointerType!=='touch'||!st.touches.has(e.pointerId)||st.touches.size<2)return;
+    e.preventDefault();
+    st.touches.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    const d=dist([...st.touches.values()]);
+    if(st.startDist){
+      st.scale=Math.max(1,Math.min(3,st.startScale*d/st.startDist));
+      layer.style.transform=`scale(${st.scale})`;
+      window.wadfunZoomUI?.update(type,st.scale);
+    }
+  },{passive:false});
+  ['pointerup','pointercancel'].forEach(t=>view.addEventListener(t,e=>{
+    if(e.pointerType==='touch'){
+      st.touches.delete(e.pointerId);
+      if(st.touches.size<2)st.startDist=0;
+    }
+  }));
+};
