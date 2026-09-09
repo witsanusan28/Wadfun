@@ -12,21 +12,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Patch drawing workspace
+      - name: Patch drawing workspace and pinch zoom
         shell: python
         run: |
           from pathlib import Path
+          import re
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
           marker = '/* WADFUN FULLSCREEN WORKSPACE */'
           if marker not in s:
               patch = '''\n''' + marker + '''\n@media (min-width:651px){#draw.active,#color.active{height:calc(100dvh - 8px);overflow:hidden}#draw.active>.back,#color.active>.back{display:none}#draw.active .drawPage,#color.active .drawPage{height:100%;display:flex;flex-direction:column}#draw.active .toolbar,#color.active .toolbar{flex:0 0 auto;position:relative;top:0;overflow-x:auto;overflow-y:hidden;white-space:nowrap;scrollbar-width:none}#draw.active .toolbar::-webkit-scrollbar,#color.active .toolbar::-webkit-scrollbar{display:none}#draw.active .canvasArea,#color.active .canvasArea{flex:1;height:auto;min-height:0;margin-top:8px}}\n@media (max-width:650px){#draw.active,#color.active{height:100dvh;overflow:hidden}#draw.active>.back,#color.active>.back{display:none}#draw.active .drawPage,#color.active .drawPage{height:100%;display:flex;flex-direction:column;padding:5px;border-radius:18px}#draw.active .toolbar,#color.active .toolbar{flex:0 0 auto;position:relative;top:0;overflow-x:auto;overflow-y:hidden;white-space:nowrap;scrollbar-width:none}#draw.active .toolbar::-webkit-scrollbar,#color.active .toolbar::-webkit-scrollbar{display:none}#draw.active .canvasArea,#color.active .canvasArea{flex:1;height:auto;min-height:0;margin-top:6px;border-radius:16px}}\n'''
               s = s.replace('</style>', patch + '</style>', 1)
-              p.write_text(s, encoding='utf-8')
+
+          new_pinch='''const pinchMap=new WeakMap();function pinchZoom(view,layer,type){const st={touches:new Map(),startDist:0,startScale:1,scale:1};pinchMap.set(view,st);window.wadfunPinchStates=window.wadfunPinchStates||{};window.wadfunPinchStates[type]=st;view.addEventListener('pointerdown',e=>{if(e.pointerType!=='touch')return;st.touches.set(e.pointerId,{x:e.clientX,y:e.clientY});try{view.setPointerCapture?.(e.pointerId)}catch(_){}if(st.touches.size===2){isDrawing=false;st.startDist=dist([...st.touches.values()]);st.startScale=st.scale;window.wadfunZoomUI?.update(type,st.scale)}});view.addEventListener('pointermove',e=>{if(e.pointerType!=='touch'||!st.touches.has(e.pointerId)||st.touches.size<2)return;e.preventDefault();st.touches.set(e.pointerId,{x:e.clientX,y:e.clientY});const d=dist([...st.touches.values()]);if(st.startDist){st.scale=Math.max(1,Math.min(3,st.startScale*d/st.startDist));layer.style.transform=`scale(${st.scale})`;window.wadfunZoomUI?.update(type,st.scale)}},{passive:false});['pointerup','pointercancel'].forEach(t=>view.addEventListener(t,e=>{if(e.pointerType==='touch'){st.touches.delete(e.pointerId);if(st.touches.size<2)st.startDist=0;try{view.releasePointerCapture?.(e.pointerId)}catch(_){} }}))}'''
+          s2 = re.sub(r"const pinchMap=new WeakMap\(\);function pinchZoom\(view,layer,type\)\{.*?\}\nfunction dist", new_pinch+'\nfunction dist', s, count=1, flags=re.S)
+          if s2 != s:
+              s = s2
+          p.write_text(s, encoding='utf-8')
       - name: Commit patch
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html
-          git diff --cached --quiet || git commit -m 'Make drawing workspace fullscreen on iPad'
+          git diff --cached --quiet || git commit -m 'Fix pinch zoom and lock drawing toolbar'
           git push
