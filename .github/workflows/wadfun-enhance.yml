@@ -1,0 +1,78 @@
+name: Enhance Wadfun drawing tools
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  enhance:
+    if: ${{ !contains(github.event.head_commit.message, '[wadfun-enhanced]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add brush sizes, gradient color UI and pinch zoom
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text()
+          if '<!-- WADFUN ENHANCED TOOLS -->' in s:
+              raise SystemExit(0)
+          marker='@media(max-width:800px)'
+          css='''
+/* WADFUN ENHANCED TOOLS */
+.sizePanel{background:#fff;border:2px solid #e3edf5;border-radius:20px;padding:12px;margin-top:12px}
+.sizeRow{display:flex;align-items:center;gap:12px}
+.sizeRow label{font-weight:900;min-width:110px}.sizeRow input{flex:1;accent-color:#35a76c}.sizeValue{min-width:54px;text-align:center;font-weight:900;background:#eef8ff;border-radius:12px;padding:7px}
+.zoomHint{font-size:13px;color:#6d7b83;margin-top:8px}
+.canvasWrap.zooming .canvas{cursor:grabbing}
+'''
+          s=s.replace(marker,css+marker,1)
+          old='''</div></div><div id="drawPalette" class="palette"></div>'''
+          new='''</div></div>
+<div class="sizePanel" id="drawSizePanel">
+  <div class="sizeRow"><label id="drawSizeLabel">✏️ ขนาดเส้น</label><input id="drawSize" type="range" min="2" max="40" value="7" oninput="setDrawSize(this.value)"><span class="sizeValue" id="drawSizeValue">7 px</span></div>
+  <div class="zoomHint">🤏 ใช้สองนิ้วหุบ/ขยายเพื่อซูมพื้นที่วาด</div>
+</div>
+<div id="drawPalette" class="palette"></div>'''
+          if old not in s: raise SystemExit('draw html marker missing')
+          s=s.replace(old,new,1)
+          old='''</div></div><div id="colorPalette" class="palette"></div>'''
+          new='''</div></div>
+<div class="sizePanel" id="colorSizePanel">
+  <div class="sizeRow"><label id="colorSizeLabel">🖍️ ขนาดระบาย</label><input id="colorSize" type="range" min="4" max="60" value="22" oninput="setColorSize(this.value)"><span class="sizeValue" id="colorSizeValue">22 px</span></div>
+  <div class="zoomHint">🤏 ใช้สองนิ้วหุบ/ขยายเพื่อซูมภาพระบายสี</div>
+</div>
+<div id="colorPalette" class="palette"></div>'''
+          if old not in s: raise SystemExit('color html marker missing')
+          s=s.replace(old,new,1)
+          s=s.replace("let selectedColor='#e53935',drawMode='pen',colorMode='bucket',currentTemplate='',currentName='ภาพระบายสีของฉัน',drawUndo=[],drawRedo=[],colorUndo=[],isDrawing=false;", "let selectedColor='#e53935',drawMode='pen',colorMode='bucket',currentTemplate='',currentName='ภาพระบายสีของฉัน',drawUndo=[],drawRedo=[],colorUndo=[],isDrawing=false;\nlet drawSize=7,eraserSize=28,colorBrushSize=22;\nlet pinch={};")
+          s=s.replace("function setDrawTool(mode){drawMode=mode;document.getElementById('drawTool').classList.toggle('on',mode==='pen');document.getElementById('eraserTool').classList.toggle('on',mode==='eraser')}", "function setDrawTool(mode){drawMode=mode;document.getElementById('drawTool').classList.toggle('on',mode==='pen');document.getElementById('eraserTool').classList.toggle('on',mode==='eraser');document.getElementById('drawSizeLabel').textContent=mode==='eraser'?'🧽 ขนาดยางลบ':'✏️ ขนาดเส้น';const el=document.getElementById('drawSize');el.min=mode==='eraser'?5:2;el.max=mode==='eraser'?80:40;el.value=mode==='eraser'?eraserSize:drawSize;document.getElementById('drawSizeValue').textContent=el.value+' px'}\nfunction setDrawSize(v){v=Number(v);if(drawMode==='eraser')eraserSize=v;else drawSize=v;document.getElementById('drawSizeValue').textContent=v+' px'}")
+          s=s.replace("ctx.lineWidth=(drawMode==='eraser'?28:7)*(Math.min(devicePixelRatio||1,2));", "ctx.lineWidth=(drawMode==='eraser'?eraserSize:drawSize)*(Math.min(devicePixelRatio||1,2));")
+          s=s.replace("function setColorTool(mode){colorMode=mode;['bucketTool','colorPenTool','colorEraseTool'].forEach((id,i)=>document.getElementById(id).classList.toggle('on',['bucket','pen','eraser'][i]===mode))}", "function setColorTool(mode){colorMode=mode;['bucketTool','colorPenTool','colorEraseTool'].forEach((id,i)=>document.getElementById(id).classList.toggle('on',['bucket','pen','eraser'][i]===mode));const label=document.getElementById('colorSizeLabel');label.textContent=mode==='eraser'?'🧽 ขนาดยางลบ':mode==='pen'?'🖍️ ขนาดระบาย':'🪣 ขนาดถังสี';document.getElementById('colorSize').disabled=mode==='bucket';document.getElementById('colorSizeValue').textContent=colorBrushSize+' px'}\nfunction setColorSize(v){colorBrushSize=Number(v);document.getElementById('colorSizeValue').textContent=colorBrushSize+' px'}")
+          s=s.replace("ctx.arc(p.x,p.y,22*(Math.min(devicePixelRatio||1,2)),0,Math.PI*2);", "ctx.arc(p.x,p.y,colorBrushSize*(Math.min(devicePixelRatio||1,2)),0,Math.PI*2);")
+          pinch='''
+function enablePinchZoom(c){
+  const key=c.id;
+  pinch[key]={points:new Map(),startDist:0,startZoom:1,zoom:1};
+  c.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'){pinch[key].points.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pinch[key].points.size===2){isDrawing=false;pinch[key].startDist=distance([...pinch[key].points.values()]);pinch[key].startZoom=pinch[key].zoom;}}},{passive:false});
+  c.addEventListener('pointermove',e=>{if(e.pointerType!=='touch'||!pinch[key].points.has(e.pointerId)||pinch[key].points.size<2)return;e.preventDefault();pinch[key].points.set(e.pointerId,{x:e.clientX,y:e.clientY});const d=distance([...pinch[key].points.values()]);if(!pinch[key].startDist)return;pinch[key].zoom=Math.max(1,Math.min(3,pinch[key].startZoom*d/pinch[key].startDist));c.style.transform=`scale(${pinch[key].zoom})`;c.closest('.canvasWrap')?.classList.add('zooming')},{passive:false});
+  ['pointerup','pointercancel','pointerleave'].forEach(type=>c.addEventListener(type,e=>{if(e.pointerType==='touch'){pinch[key].points.delete(e.pointerId);if(pinch[key].points.size<2){pinch[key].startDist=0;c.closest('.canvasWrap')?.classList.remove('zooming');}}}));
+}
+function distance(a){if(a.length<2)return 0;return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)}
+'''
+          s=s.replace("function initDraw(){const c=document.getElementById('drawCanvas');if(c.dataset.ready)return;sizeCanvas(c);c.dataset.ready='1';const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);bindDraw(c,ctx)}", "function initDraw(){const c=document.getElementById('drawCanvas');if(c.dataset.ready)return;sizeCanvas(c);c.dataset.ready='1';const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);bindDraw(c,ctx);enablePinchZoom(c)}")
+          s=s.replace("function initColor(){const c=document.getElementById('colorCanvas');if(c.dataset.ready)return;sizeCanvas(c);c.dataset.ready='1';c.addEventListener('pointerdown',colorDown)}", "function initColor(){const c=document.getElementById('colorCanvas');if(c.dataset.ready)return;sizeCanvas(c);c.dataset.ready='1';c.addEventListener('pointerdown',colorDown);enablePinchZoom(c)}")
+          # Put pinch functions immediately before the drawing initializer.
+          s=s.replace('function initDraw(){',pinch+'\nfunction initDraw(){',1)
+          s=s.replace('<script>','<script>\n<!-- WADFUN ENHANCED TOOLS -->',1)
+          p.write_text(s)
+          PY
+          git config user.name "Wadfun Bot"
+          git config user.email "wadfun-bot@users.noreply.github.com"
+          git add index.html
+          git commit -m "Add adjustable brush sizes and pinch zoom [wadfun-enhanced]" || exit 0
+          git push
