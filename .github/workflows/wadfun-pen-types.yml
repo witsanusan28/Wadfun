@@ -13,8 +13,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Patch drawing engine
-        env:
-          FN_B64: ZnVuY3Rpb24gYmluZERyYXcoYyx4KXsKYy5hZGRFdmVudExpc3RlbmVyKCdwb2ludGVyZG93bicsZT0+ewogY29uc3Qgc3Q9cGluY2hNYXAuaW1wb3J0P2RlZmF1bHQ6bnVsbDsKfQ==
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -25,14 +23,12 @@ jobs:
           if marker in s:
               print('already patched')
               raise SystemExit(0)
-          fn=base64.b64decode('''' + '${FN_B64}' + '''').decode('utf-8')
-          pattern=r"function bindDraw\(c,x\)\{.*?\n\}"
-          s,n=re.subn(pattern,fn,s,count=1,flags=re.S)
-          if n!=1:
-              raise SystemExit('bindDraw not found')
-          s=s.replace('</body>', '<script>'+marker+'\n</script></body>', 1)
+          fn=base64.b64decode('ZnVuY3Rpb24gYmluZERyYXcoYyx4KXsKYy5hZGRFdmVudExpc3RlbmVyKCdwb2ludGVyZG93bicsZT0+ewogY29uc3Qgc3Q9cGluY2hNYXAuZ2V0KGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdkcmF3Vmlld3BvcnQnKSk7CiBpZihlLnBvaW50ZXJUeXBlPT09J3RvdWNoJyYmc3QudG91Y2hlcy5zaXplKXJldHVybjsKIGUucHJldmVudERlZmF1bHQoKTtpc0RyYXdpbmc9dHJ1ZTtzYXZlRHJhd1N0YXRlKCk7Yy5zZXRQb2ludGVyQ2FwdHVyZT8uKGUucG9pbnRlcklkKTsKIGNvbnN0IHA9cG9zKGMsZSk7eC5iZWdpblBhdGgoKTt4Lm1vdmVUbyhwLngscC55KTsKIHguZ2xvYmFsQ29tcG9zaXRlT3BlcmF0aW9uPWRyYXdNb2RlPT09J2VyYXNlcic/J2Rlc3RpbmF0aW9uLW91dCc6J3NvdXJjZS1vdmVyJzsKfSk7CmMuYWRkRXZlbnRMaXN0ZW5lcigncG9pbnRlcm1vdmUnLGU9PnsKIGlmKCFpc0RyYXdpbmcpcmV0dXJuO2UucHJldmVudERlZmF1bHQoKTsKIGNvbnN0IHA9cG9zKGMsZSksc2hhZGU9c2VsZWN0ZWRDb2xvcjsKIGNvbnN0IGJhc2U9KGRyYXdNb2RlPT09J2VyYXNlcic/ZXJhc2VyU2l6ZTpkcmF3U2l6ZSkqTWF0aC5taW4oZGV2aWNlUGl4ZWxSYXRpb3x8MSwyKTsKIGNvbnN0IHByZXNzdXJlPShlLnByZXNzdXJlPjA/ZS5wcmVzc3VyZTouNSk7CiBjb25zdCBqaXR0ZXI9KE1hdGgucmFuZG9tKCktLjUpKk1hdGgubWF4KDEsYmFzZSouMDQ1KTsKIHguZ2xvYmFsQ29tcG9zaXRlT3BlcmF0aW9uPWRyYXdNb2RlPT09J2VyYXNlcic/J2Rlc3RpbmF0aW9uLW91dCc6J3NvdXJjZS1vdmVyJzsKIHgubGluZUNhcD0ncm91bmQnO3gubGluZUpvaW49J3JvdW5kJzt4LnNldExpbmVEYXNoKFtdKTt4Lmdsb2JhbEFscGhhPTE7CiBpZihkcmF3TW9kZT09PSdwZW5jaWwnKXsKICB4LnN0cm9rZVN0eWxlPXNoYWRlO3guZ2xvYmFsQWxwaGE9LjcyO3gubGluZVdpZHRoPU1hdGgubWF4KDEuNSxiYXNlKiguNTUrcHJlc3N1cmUqLjM1KSk7CiAgeC5saW5lVG8ocC54K2ppdHRlcixwLnkraml0dGVyKTt4LnN0cm9rZSgpOwogfWVsc2UgaWYoZHJhd01vZGU9PT0nY3JheW9uJyl7CiAgeC5zdHJva2VTdHlsZT1zaGFkZTt4Lmdsb2JhbEFscGhhPS41NTt4LmxpbmVXaWR0aD1NYXRoLm1heCgyLGJhc2UqMS4wNSk7CiAgeC5saW5lVG8ocC54K2ppdHRlcioyLHAueStqaXR0ZXIqMik7eC5zdHJva2UoKTsKICB4Lmdsb2JhbEFscGhhPS4yMjt4LmxpbmVXaWR0aD1NYXRoLm1heCgxLGJhc2UqLjQyKTsKICB4LmxpbmVUbyhwLngtaml0dGVyKjMscC55K2ppdHRlcioyKTt4LnN0cm9rZSgpOwogfWVsc2UgaWYoZHJhd01vZGU9PT0nYnJ1c2gnKXsKICB4LnN0cm9rZVN0eWxlPXNoYWRlO3guZ2xvYmFsQWxwaGE9Ljk7eC5saW5lV2lkdGg9TWF0aC5tYXgoMixiYXNlKiguNDUrcHJlc3N1cmUqMS4xNSkpOwogIHgubGluZVRvKHAueCxwLnkpO3guc3Ryb2tlKCk7CiB9ZWxzZSBpZihkcmF3TW9kZT09PSdtYXJrZXInKXsKICB4LnN0cm9rZVN0eWxlPXNoYWRlO3guZ2xvYmFsQWxwaGE9Ljk2O3gubGluZVdpZHRoPU1hdGgubWF4KDMsYmFzZSoxLjE4KTsKICB4LmxpbmVUbyhwLngscC55KTt4LnN0cm9rZSgpOwogfWVsc2UgaWYoZHJhd01vZGU9PT0nc3BhcmtsZScpewogIHguc3Ryb2tlU3R5bGU9c2hhZGU7eC5nbG9iYWxBbHBoYT0uNzt4LmxpbmVXaWR0aD1NYXRoLm1heCgyLGJhc2UqLjcyKTsKICB4LmxpbmVUbyhwLngscC55KTt4LnN0cm9rZSgpOwogIGlmKE1hdGgucmFuZG9tKCk8LjE2KXsKICAgY29uc3Qgcj1NYXRoLm1heCgyLjUsYmFzZSouMjgpO3guc2F2ZSgpO3guZ2xvYmFsQWxwaGE9Ljk1O3guZmlsbFN0eWxlPXNoYWRlOwogICB4LmJlZ2luUGF0aCgpO3gubW92ZVRvKHAueCxwLnktcioyLjIpO3gubGluZVRvKHAueCtyKi41NSxwLnktciouNTUpO3gubGluZVRvKHAueCtyKjIuMixwLnkpO3gubGluZVRvKHAueCtyKi41NSxwLnkrciouNTUpO3gubGluZVRvKHAueCxwLnkrcioyLjIpO3gubGluZVRvKHAueC1yKi41NSxwLnkrciouNTUpO3gubGluZVRvKHAueC1yKjIuMixwLnkpO3gubGluZVRvKHAueC1yKi41NSxwLnktciouNTUpO3guY2xvc2VQYXRoKCk7eC5maWxsKCk7eC5yZXN0b3JlKCk7CiAgfQogfWVsc2V7eC5zdHJva2VTdHlsZT1zaGFkZTt4LmxpbmVXaWR0aD1iYXNlO3gubGluZVRvKHAueCxwLnkpO3guc3Ryb2tlKCk7fQp9LHtwYXNzaXZlOmZhbHNlfSk7ClsncG9pbnRlcnVwJywncG9pbnRlcmNhbmNlbCcsJ3BvaW50ZXJsZWF2ZSddLmZvckVhY2godD0+Yy5hZGRFdmVudExpc3RlbmVyKHQsKCk9PnsKIGlzRHJhd2luZz1mYWxzZTt4Lmdsb2JhbEFscGhhPTE7eC5zZXRMaW5lRGFzaChbXSk7eC5nbG9iYWxDb21wb3NpdGlvbj0nc291cmNlLW92ZXInOwp9KSk7Cn0').decode('utf-8')
+          s,n=re.subn(r"function bindDraw\(c,x\)\{.*?\n\}",fn,s,count=1,flags=re.S)
+          if n!=1: raise SystemExit('bindDraw not found')
+          s=s.replace('</body>','<script>'+marker+'</script></body>',1)
           p.write_text(s,encoding='utf-8')
-          print('patched pen engine')
+          print('patched')
           PY
       - name: Commit patch
         run: |
