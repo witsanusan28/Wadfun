@@ -1,17 +1,25 @@
-/* Wadfun pen rendering engine V3
-   ปากกาจะใช้สีจากตัวแสดงสีที่เลือกจริง รองรับ Apple Pencil pressure */
+/* Wadfun pen rendering engine V4
+   ปากกาวาดด้วย 1 นิ้ว / Apple Pencil ได้ต่อเนื่อง
+   2 นิ้วสงวนไว้สำหรับ pinch zoom เท่านั้น */
 function wadfunCurrentDrawColor(){
   const el=document.getElementById('drawDot')||document.getElementById('colorDot');
   const m=el&&getComputedStyle(el).backgroundColor.match(/\d+(?:\.\d+)?/g);
   return m&&m.length>=3?'#'+m.slice(0,3).map(v=>Math.round(+v).toString(16).padStart(2,'0')).join(''):(typeof selectedColor!=='undefined'?selectedColor:'#e53935');
 }
+function wadfunDrawHasTwoTouches(){
+  try{
+    const view=document.getElementById('drawViewport');
+    const st=view&&pinchMap.get(view);
+    return !!(st&&st.touches&&st.touches.size>=2);
+  }catch(_){return false}
+}
 function bindDraw(c,x){
   c.addEventListener('pointerdown',e=>{
-    const st=pinchMap.get(document.getElementById('drawViewport'));
-    if(e.pointerType==='touch'&&st.touches.size)return;
+    if(e.pointerType==='touch'&&wadfunDrawHasTwoTouches())return;
     e.preventDefault();isDrawing=true;saveDrawState();c.setPointerCapture?.(e.pointerId);const p=pos(c,e);x.beginPath();x.moveTo(p.x,p.y);x.globalCompositeOperation=drawMode==='eraser'?'destination-out':'source-over';
   });
   c.addEventListener('pointermove',e=>{
+    if(e.pointerType==='touch'&&wadfunDrawHasTwoTouches()){isDrawing=false;return}
     if(!isDrawing)return;e.preventDefault();const p=pos(c,e),shade=wadfunCurrentDrawColor();
     const base=(drawMode==='eraser'?eraserSize:drawSize)*Math.min(devicePixelRatio||1,2),pressure=(typeof e.pressure==='number'&&e.pressure>0)?e.pressure:.5,jitter=(Math.random()-.5)*Math.max(1,base*.045);
     x.globalCompositeOperation=drawMode==='eraser'?'destination-out':'source-over';x.lineCap='round';x.lineJoin='round';x.setLineDash([]);x.globalAlpha=1;
@@ -22,5 +30,5 @@ function bindDraw(c,x){
     else if(drawMode==='sparkle'){x.strokeStyle=shade;x.globalAlpha=.7;x.lineWidth=Math.max(2,base*.72);x.lineTo(p.x,p.y);x.stroke();if(Math.random()<.16){const r=Math.max(2.5,base*.28);x.save();x.globalAlpha=.95;x.fillStyle=shade;x.beginPath();x.moveTo(p.x,p.y-r*2.2);x.lineTo(p.x+r*.55,p.y-r*.55);x.lineTo(p.x+r*2.2,p.y);x.lineTo(p.x+r*.55,p.y+r*.55);x.lineTo(p.x,p.y+r*2.2);x.lineTo(p.x-r*.55,p.y+r*.55);x.lineTo(p.x-r*2.2,p.y);x.lineTo(p.x-r*.55,p.y-r*.55);x.closePath();x.fill();x.restore()}
     }else{x.strokeStyle=shade;x.lineWidth=base;x.lineTo(p.x,p.y);x.stroke()}
   },{passive:false});
-  ['pointerup','pointercancel','pointerleave'].forEach(t=>c.addEventListener(t,()=>{isDrawing=false;x.globalAlpha=1;x.setLineDash([]);x.globalCompositeOperation='source-over'}));
+  ['pointerup','pointercancel'].forEach(t=>c.addEventListener(t,()=>{isDrawing=false;x.globalAlpha=1;x.setLineDash([]);x.globalCompositeOperation='source-over'}));
 }
