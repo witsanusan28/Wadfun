@@ -100,4 +100,4 @@ function parent(){document.getElementById('count').textContent=JSON.parse(localS
 function esc(s){return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function setLang(l){lang=l;document.documentElement.lang=l;document.getElementById('thaiBtn').classList.toggle('on',l==='th');document.getElementById('engBtn').classList.toggle('on',l==='en')}
 renderCategories();renderPens();renderColors();pickColor(selectedColor);
-</script><script src="pen-engine.js"></script><script src="color-engine.js"></script><script src="color-picker-v3.js"></script><script src="responsive-engine.js"></script><script src="color-ui-fix.js"></script></body></html>
+</script><script src="canvas-core.js"></script><script src="pen-engine.js"></script><script src="color-engine.js"></script><script src="color-picker-v3.js"></script><script src="responsive-engine.js"></script><script src="color-ui-fix.js"></script></body></html>
