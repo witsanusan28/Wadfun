@@ -1,49 +1,47 @@
-/* Wadfun Color Engine V9 — reusable fill regions with persistent line mask */
+/* Wadfun Color Engine V10 — bucket fill + freehand coloring, isolated to Color mode */
 (function(){
 'use strict';
 const EDGE_LUMA=205,MIN_ALPHA=18;
 function luma(r,g,b){return .299*r+.587*g+.114*b}
 function wall(d,i){return d[i+3]<MIN_ALPHA||luma(d[i],d[i+1],d[i+2])<EDGE_LUMA}
 function rgb(h){h=(h||'#e53935').replace('#','');if(h.length===3)h=h.split('').map(x=>x+x).join('');return[parseInt(h.slice(0,2),16)||0,parseInt(h.slice(2,4),16)||0,parseInt(h.slice(4,6),16)||0]}
+function point(c,x,y){const r=c.getBoundingClientRect();return{x:(x-r.left)*c.width/r.width,y:(y-r.top)*c.height/r.height}}
 
-// Build the wall map from the clean line-art before the first fill.
+// Keep the original line-art as an immutable wall map, so recoloring never turns a painted color into a wall.
 let wallMask=null,maskW=0,maskH=0;
-function ensureMask(c,src){
- if(wallMask&&maskW===c.width&&maskH===c.height)return;
- const n=c.width*c.height;wallMask=new Uint8Array(n);maskW=c.width;maskH=c.height;
- for(let q=0,i=0;q<n;q++,i+=4)wallMask[q]=wall(src,i)?1:0;
-}
+function ensureMask(c,src){if(wallMask&&maskW===c.width&&maskH===c.height)return;const n=c.width*c.height;wallMask=new Uint8Array(n);maskW=c.width;maskH=c.height;for(let q=0,i=0;q<n;q++,i+=4)wallMask[q]=wall(src,i)?1:0}
 function resetMask(){wallMask=null;maskW=maskH=0}
+function fill(c,x,y,hex){const ctx=c.getContext('2d',{willReadFrequently:true}),w=c.width,h=c.height;if(!w||!h)return false;x=Math.max(0,Math.min(w-1,x|0));y=Math.max(0,Math.min(h-1,y|0));const im=ctx.getImageData(0,0,w,h),d=im.data;ensureMask(c,d);const start=y*w+x;if(wallMask[start])return false;const p=rgb(hex),seen=new Uint8Array(w*h),stack=[start];let changed=false;while(stack.length){const q=stack.pop();if(q<0||q>=w*h||seen[q]||wallMask[q])continue;seen[q]=1;const i=q*4;if(d[i]!==p[0]||d[i+1]!==p[1]||d[i+2]!==p[2]||d[i+3]!==255)changed=true;d[i]=p[0];d[i+1]=p[1];d[i+2]=p[2];d[i+3]=255;const qx=q%w;if(qx)stack.push(q-1);if(qx<w-1)stack.push(q+1);if(q>=w)stack.push(q-w);if(q<w*(h-1))stack.push(q+w)}if(changed)ctx.putImageData(im,0,0);return changed}
+function selectedColor(){const e=document.getElementById('colorDot'),m=(e?getComputedStyle(e).backgroundColor:'').match(/\d+(?:\.\d+)?/g);return m&&m.length>=3?'#'+m.slice(0,3).map(v=>(+v|0).toString(16).padStart(2,'0')).join(''):'#e53935'}
+function pushUndo(c){const before=c.toDataURL();if(typeof colorUndo!=='undefined'){colorUndo.push(before);if(colorUndo.length>30)colorUndo.shift()}return before}
+function mode(){if(document.getElementById('colorPenBtn')?.classList.contains('on'))return'pen';if(document.getElementById('colorEraseBtn')?.classList.contains('on'))return'eraser';return'bucket'}
+function beginStroke(c,ctx,x,y){pushUndo(c);ctx.beginPath();const p=point(c,x,y);ctx.moveTo(p.x,p.y);ctx.lineCap='round';ctx.lineJoin='round';ctx.globalAlpha=1;ctx.globalCompositeOperation=mode()==='eraser'?'source-over':'source-over';ctx.strokeStyle=mode()==='eraser'?'#fff':selectedColor();ctx.lineWidth=(mode()==='eraser'?(typeof eraserSize!=='undefined'?eraserSize:30):(typeof colorBrushSize!=='undefined'?colorBrushSize:22))*Math.min(devicePixelRatio||1,2);return p}
+function strokeTo(c,ctx,x,y){const p=point(c,x,y);ctx.lineTo(p.x,p.y);ctx.stroke()}
+function endStroke(ctx){ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';ctx.setLineDash([])}
 
-function fill(c,x,y,hex){
- const ctx=c.getContext('2d',{willReadFrequently:true}),w=c.width,h=c.height;if(!w||!h)return false;
- x=Math.max(0,Math.min(w-1,x|0));y=Math.max(0,Math.min(h-1,y|0));
- const im=ctx.getImageData(0,0,w,h),d=im.data;
- ensureMask(c,d);
- const start=y*w+x;if(wallMask[start])return false;
- const p=rgb(hex),seen=new Uint8Array(w*h),stack=[start];let changed=false;
- while(stack.length){const q=stack.pop();if(q<0||q>=w*h||seen[q]||wallMask[q])continue;seen[q]=1;const i=q*4;
-  if(d[i]!==p[0]||d[i+1]!==p[1]||d[i+2]!==p[2]||d[i+3]!==255)changed=true;
-  d[i]=p[0];d[i+1]=p[1];d[i+2]=p[2];d[i+3]=255;
-  const qx=q%w;
-  if(qx)stack.push(q-1);if(qx<w-1)stack.push(q+1);if(q>=w)stack.push(q-w);if(q<w*(h-1))stack.push(q+w);
- }
- if(changed)ctx.putImageData(im,0,0);return changed;
-}
-function color(){const e=document.getElementById('colorDot'),m=(e?getComputedStyle(e).backgroundColor:'').match(/\d+(?:\.\d+)?/g);return m&&m.length>=3?'#'+m.slice(0,3).map(v=>(+v|0).toString(16).padStart(2,'0')).join(''):'#e53935'}
-let history=[];
 function install(){
  const c=document.getElementById('colorCanvas'),v=document.getElementById('colorViewport'),z=document.getElementById('colorZoom');
- if(!c||!v||!z||c.dataset.colorV9)return false;if(!window.wadfunBindTapCanvas)return false;c.dataset.colorV9='1';
- const tap=(x,y)=>{
-  if(document.getElementById('bucketBtn')&&!document.getElementById('bucketBtn').classList.contains('on'))return;
-  const before=c.toDataURL();
-  const p=window.WadfunCanvasCore?.pointFromClient(c,x,y)||(()=>{const r=c.getBoundingClientRect();return{x:(x-r.left)*c.width/r.width,y:(y-r.top)*c.height/r.height}})();
-  if(fill(c,p.x,p.y,color())){history.push(before);if(history.length>30)history.shift()}
- };
- window.wadfunBindTapCanvas(c,v,z,'color',tap);return true;
+ if(!c||!v||!z||c.dataset.colorV10)return false;
+ c.dataset.colorV10='1';
+ const tap=(x,y)=>{if(mode()!=='bucket')return;const before=c.toDataURL();const p=point(c,x,y);if(fill(c,p.x,p.y,selectedColor())&&typeof colorUndo!=='undefined'){colorUndo.push(before);if(colorUndo.length>30)colorUndo.shift()}};
+ if(window.wadfunBindTapCanvas)window.wadfunBindTapCanvas(c,v,z,'color',tap);
+
+ // COLOR MODE ONLY: freehand pencil/eraser. Draw mode is untouched.
+ let drawing=false,touchId=null,ctx=null;
+ function start(x,y){const m=mode();if(m==='bucket')return false;ctx=ctx||c.getContext('2d');pushUndo(c);const p=point(c,x,y);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineCap='round';ctx.lineJoin='round';ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';ctx.strokeStyle=m==='eraser'?'#fff':selectedColor();const size=m==='eraser'?(typeof eraserSize!=='undefined'?eraserSize:30):(typeof colorBrushSize!=='undefined'?colorBrushSize:22);ctx.lineWidth=size*Math.min(devicePixelRatio||1,2);drawing=true;return true}
+ function move(x,y){if(!drawing||!ctx)return;const p=point(c,x,y);ctx.lineTo(p.x,p.y);ctx.stroke()}
+ function end(){if(!drawing)return;drawing=false;touchId=null;endStroke(ctx)}
+ c.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'||mode()==='bucket')return;e.preventDefault();e.stopImmediatePropagation();start(e.clientX,e.clientY)},true);
+ c.addEventListener('pointermove',e=>{if(e.pointerType==='touch'||!drawing)return;e.preventDefault();e.stopImmediatePropagation();move(e.clientX,e.clientY)},{passive:false,capture:true});
+ c.addEventListener('pointerup',e=>{if(e.pointerType!=='touch')end()},{capture:true});
+ c.addEventListener('pointercancel',e=>{if(e.pointerType!=='touch')end()},{capture:true});
+ c.addEventListener('touchstart',e=>{if(e.touches.length!==1||mode()==='bucket'){if(e.touches.length>1)end();return}const t=e.touches[0];touchId=t.identifier;e.preventDefault();start(t.clientX,t.clientY)},{passive:false});
+ c.addEventListener('touchmove',e=>{if(!drawing||e.touches.length!==1)return;const t=[...e.touches].find(q=>q.identifier===touchId)||e.touches[0];e.preventDefault();move(t.clientX,t.clientY)},{passive:false});
+ c.addEventListener('touchend',e=>{e.preventDefault();end()},{passive:false});
+ c.addEventListener('touchcancel',end,{passive:false});
+ return true;
 }
-const t=setInterval(()=>{if(install())clearInterval(t)},100);
-window.wadfunFillRegionV9=fill;
+const timer=setInterval(()=>{if(install())clearInterval(timer)},100);
+window.wadfunFillRegionV10=fill;
 window.wadfunResetColorMask=resetMask;
 })();
