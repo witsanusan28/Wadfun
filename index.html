@@ -12,6 +12,10 @@
 /* WADFUN FULLSCREEN WORKSPACE */
 @media (min-width:651px){#draw.active,#color.active{height:calc(100dvh - 8px);overflow:hidden}#draw.active>.back,#color.active>.back{display:none}#draw.active .drawPage,#color.active .drawPage{height:100%;display:flex;flex-direction:column}#draw.active .toolbar,#color.active .toolbar{flex:0 0 auto;position:relative;top:0;overflow-x:auto;overflow-y:hidden;white-space:nowrap;scrollbar-width:none}#draw.active .toolbar::-webkit-scrollbar,#color.active .toolbar::-webkit-scrollbar{display:none}#draw.active .canvasArea,#color.active .canvasArea{flex:1;height:auto;min-height:0;margin-top:8px}}
 @media (max-width:650px){#draw.active,#color.active{height:100dvh;overflow:hidden}#draw.active>.back,#color.active>.back{display:none}#draw.active .drawPage,#color.active .drawPage{height:100%;display:flex;flex-direction:column;padding:5px;border-radius:18px}#draw.active .toolbar,#color.active .toolbar{flex:0 0 auto;position:relative;top:0;overflow-x:auto;overflow-y:hidden;white-space:nowrap;scrollbar-width:none}#draw.active .toolbar::-webkit-scrollbar,#color.active .toolbar::-webkit-scrollbar{display:none}#draw.active .canvasArea,#color.active .canvasArea{flex:1;height:auto;min-height:0;margin-top:6px;border-radius:16px}}
+
+/* WADFUN CANVAS FULL WORKSPACE */
+#draw.active .zoomLayer,#color.active .zoomLayer{width:100%;height:100%;display:flex;align-items:center;justify-content:center;flex:0 0 100%;}
+#draw.active .canvas,#color.active .canvas{width:100% !important;height:100% !important;max-width:none;max-height:none;}
 </style>
 
 <style id="wadfun-responsive-v2">
