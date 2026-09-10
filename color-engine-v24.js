@@ -24,7 +24,7 @@ let active=false,last=null,touches=new Map(),pinching=false;
 function ts(e){if(mode()==='bucket'){if(touches.size)return;touches.set(e.changedTouches[0].identifier,true);fillAt(e.changedTouches[0]);e.preventDefault();e.stopPropagation();return}for(const t of e.changedTouches)touches.set(t.identifier,true);if(touches.size>1){active=false;pinching=true;return}const t=e.changedTouches[0];snap();last=pt(t.clientX,t.clientY);active=true;e.preventDefault();e.stopPropagation()}
 function tm(e){if(touches.size!==1||pinching)return;const t=e.touches[0];if(!t)return;const p=pt(t.clientX,t.clientY);eraseDraw(last,p,mode());last=p;e.preventDefault();e.stopPropagation()}
 function te(e){for(const t of e.changedTouches)touches.delete(t.identifier);if(touches.size===0){active=false;last=null;pinching=false}e.preventDefault();e.stopPropagation()}
-function fillAt(t){snap();if(!fill(pt(t.clientX,t.clientY).x,pt(t.clientY).y))undo.pop()}
+function fillAt(t){snap();const p=pt(t.clientX,t.clientY);if(!fill(p.x,p.y))undo.pop()}
 c.addEventListener('touchstart',ts,{capture:true,passive:false});c.addEventListener('touchmove',tm,{capture:true,passive:false});c.addEventListener('touchend',te,{capture:true,passive:false});c.addEventListener('touchcancel',te,{capture:true,passive:false});
 ['pointerdown','pointermove','pointerup','pointercancel'].forEach(t=>c.addEventListener(t,block,{capture:true,passive:false}));
 let mouse=false,lastM=null;function pd(e){if(e.pointerType==='touch'||mode()==='bucket')return;block(e);snap();lastM=pt(e.clientX,e.clientY);mouse=true}function pm(e){if(!mouse)return;block(e);const p=pt(e.clientX,e.clientY);eraseDraw(lastM,p,mode());lastM=p}function pu(e){if(!mouse)return;block(e);mouse=false;lastM=null}
