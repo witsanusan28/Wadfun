@@ -12,44 +12,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Patch drawing workspace and pinch zoom
+      - name: Patch drawing workspace
         shell: python
         run: |
           from pathlib import Path
-          import re
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
           marker = '/* WADFUN FULLSCREEN WORKSPACE */'
           if marker not in s:
               patch = '''\n''' + marker + '''\n@media (min-width:651px){#draw.active,#color.active{height:calc(100dvh - 8px);overflow:hidden}#draw.active>.back,#color.active>.back{display:none}#draw.active .drawPage,#color.active .drawPage{height:100%;display:flex;flex-direction:column}#draw.active .toolbar,#color.active .toolbar{flex:0 0 auto;position:relative;top:0;overflow-x:auto;overflow-y:hidden;white-space:nowrap;scrollbar-width:none}#draw.active .toolbar::-webkit-scrollbar,#color.active .toolbar::-webkit-scrollbar{display:none}#draw.active .canvasArea,#color.active .canvasArea{flex:1;height:auto;min-height:0;margin-top:8px}}\n@media (max-width:650px){#draw.active,#color.active{height:100dvh;overflow:hidden}#draw.active>.back,#color.active>.back{display:none}#draw.active .drawPage,#color.active .drawPage{height:100%;display:flex;flex-direction:column;padding:5px;border-radius:18px}#draw.active .toolbar,#color.active .toolbar{flex:0 0 auto;position:relative;top:0;overflow-x:auto;overflow-y:hidden;white-space:nowrap;scrollbar-width:none}#draw.active .toolbar::-webkit-scrollbar,#color.active .toolbar::-webkit-scrollbar{display:none}#draw.active .canvasArea,#color.active .canvasArea{flex:1;height:auto;min-height:0;margin-top:6px;border-radius:16px}}\n'''
               s = s.replace('</style>', patch + '</style>', 1)
-
-          new_pinch='''const pinchMap=new WeakMap();function pinchZoom(view,layer,type){const st={touches:new Map(),startDist:0,scale:1,startScale:1,startMid:null,startTx:0,startTy:0,tx:0,ty:0,pinching:false};pinchMap.set(view,st);window.wadfunPinchStates=window.wadfunPinchStates||{};window.wadfunPinchStates[type]=st;const apply=()=>{layer.style.transform=`translate(${st.tx}px,${st.ty}px) scale(${st.scale})`};const d=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);const resetIfNeeded=()=>{if(st.touches.size<2){st.startDist=0;st.pinching=false}};view.addEventListener('touchstart',e=>{for(const t of e.changedTouches)st.touches.set(t.identifier,{x:t.clientX,y:t.clientY});if(st.touches.size===2){isDrawing=false;st.pinching=true;const a=[...st.touches.values()];st.startDist=d(a[0],a[1]);st.startScale=st.scale;st.startMid={x:(a[0].x+a[1].x)/2,y:(a[0].y+a[1].y)/2};st.startTx=st.tx;st.startTy=st.ty}},{passive:true});view.addEventListener('touchmove',e=>{if(st.touches.size<2)return;for(const t of e.changedTouches)if(st.touches.has(t.identifier))st.touches.set(t.identifier,{x:t.clientX,y:t.clientY});const a=[...st.touches.values()];if(a.length<2||!st.startDist)return;e.preventDefault();const mid={x:(a[0].x+a[1].x)/2,y:(a[0].y+a[1].y)/2},nd=d(a[0],a[1]);const next=Math.max(1,Math.min(3,st.startScale*nd/st.startDist));const ratio=next/st.startScale;const vr=view.getBoundingClientRect(),cx=vr.width/2,cy=vr.height/2;const smx=st.startMid.x-vr.left-cx,smy=st.startMid.y-vr.top-cy;const mx=mid.x-vr.left-cx,my=mid.y-vr.top-cy;st.tx=mx-ratio*(smx-st.startTx);st.ty=my-ratio*(smy-st.startTy);if(next===1){st.tx=0;st.ty=0}st.scale=next;apply();window.wadfunZoomUI?.update(type,st.scale)},{passive:false});['touchend','touchcancel'].forEach(ev=>view.addEventListener(ev,e=>{for(const t of e.changedTouches)st.touches.delete(t.identifier);resetIfNeeded()},{passive:true}))}'''
-          s2 = re.sub(r"const pinchMap=new WeakMap\(\);function pinchZoom\(view,layer,type\)\{.*?\}\nfunction dist", new_pinch+'\nfunction dist', s, count=1, flags=re.S)
-          if s2 != s:
-              s = s2
-
-          core_tag='<script src="canvas-core.js"></script>'
-          if core_tag not in s:
-              s=s.replace('<script src="pen-engine.js"></script>',core_tag+'<script src="pen-engine.js"></script>',1)
-
-          circle_tag='<script src="circle-template.js"></script>'
-          if circle_tag not in s:
-              anchor=core_tag
-              if anchor in s:
-                  s=s.replace(anchor,circle_tag+anchor,1)
-              else:
-                  s=s.replace('<script src="pen-engine.js"></script>',circle_tag+'<script src="pen-engine.js"></script>',1)
-
-          guard_tag='<script src="color-touch-guard.js"></script>'
-          if guard_tag not in s:
-              s=s.replace('<script src="color-engine.js"></script>','<script src="color-engine.js"></script>'+guard_tag,1)
-
+          # Neutralize the old global pinchZoom function so the legacy two-finger handlers are never installed.
+          s = s.replace('<script src="canvas-core.js"></script>', '<script src="canvas-core.js"></script><script src="disable-pinch.js"></script>', 1) if '<script src="disable-pinch.js"></script>' not in s else s
+          # Load the stable slider after all existing engines/UI scripts.
+          if '<script src="zoom-ui.js"></script>' not in s:
+              s = s.replace('</body>', '<script src="zoom-ui.js"></script></body>', 1)
+          # Replace the old two-finger hint wherever it appears.
+          s = s.replace('🤏 สองนิ้วหุบ / ขยาย เพื่อซูม', '🔍 เลื่อนแถบด้านซ้ายเพื่อซูม')
+          s = s.replace('🤏 สองนิ้วหุบ / ขยาย เพื่อดูรายละเอียด', '🔍 เลื่อนแถบด้านซ้ายเพื่อซูม')
           p.write_text(s, encoding='utf-8')
       - name: Commit patch
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html
-          git diff --cached --quiet || git commit -m 'Guard Color bucket from pinch touch'
+          git diff --cached --quiet || git commit -m 'Add stable zoom slider'
           git push
