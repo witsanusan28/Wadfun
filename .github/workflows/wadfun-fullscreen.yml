@@ -31,6 +31,10 @@ jobs:
           s = s.replace('<script src="disable-pinch.js"></script>', '')
           if '<script src="pen-engine.js"></script>' in s:
               s = s.replace('<script src="pen-engine.js"></script>', '<script src="pen-engine.js"></script><script src="disable-pinch.js"></script>', 1)
+          if '<script src="color-line-lock.js"></script>' not in s:
+              marker_script = '<script src="color-engine.js"></script>'
+              if marker_script in s:
+                  s = s.replace(marker_script, marker_script + '<script src="color-line-lock.js"></script>', 1)
           if '<script src="zoom-ui.js"></script>' not in s:
               s = s.replace('</body>', '<script src="zoom-ui.js"></script></body>', 1)
           if '<script src="gallery-engine.js"></script>' not in s:
@@ -43,5 +47,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html
-          git diff --cached --quiet || git commit -m 'Add local gallery actions'
+          git diff --cached --quiet || git commit -m 'Keep original Color template lines in saved images'
           git push
