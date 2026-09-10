@@ -1,4 +1,4 @@
-/* Wadfun Color Engine V22 — Color pen without legacy overlay or start dot. Draw mode untouched. */
+/* Wadfun Color Engine V23 — isolate Color events, correct selected color, continuous pen. Draw mode untouched. */
 (function(){
 'use strict';
 const LINE_LUMA=248,MIN_ALPHA=18,PAINT_ALPHA=12,MAX_DPR=1.5;
@@ -22,10 +22,11 @@ function samePaint(d,i,p,base){const a=d[i+3];if(base)return a<=PAINT_ALPHA;if(a
 function fillRegion(x,y,hex){if(!paintCtx||!mask)return false;const w=mw,h=mh;x=Math.max(0,Math.min(w-1,x|0));y=Math.max(0,Math.min(h-1,y|0));const start=y*w+x;if(mask[start])return false;const im=paintCtx.getImageData(0,0,w,h),d=im.data,si=start*4,base=d[si+3]<=PAINT_ALPHA,p=[d[si],d[si+1],d[si+2]],t=rgb(hex);let changed=false,stack=[start];while(stack.length){const seed=stack.pop(),sy=(seed/w)|0,sx=seed-sy*w;if(mask[seed])continue;let lx=sx,rx=sx;while(lx>=0&&!mask[sy*w+lx]&&samePaint(d,(sy*w+lx)*4,p,base))lx--;lx++;while(rx<w&&!mask[sy*w+rx]&&samePaint(d,(sy*w+rx)*4,p,base))rx--;rx--;if(lx>rx)continue;for(let xx=lx;xx<=rx;xx++){const i=(sy*w+xx)*4;if(d[i]!==t[0]||d[i+1]!==t[1]||d[i+2]!==t[2]||d[i+3]!==255)changed=true;d[i]=t[0];d[i+1]=t[1];d[i+2]=t[2];d[i+3]=255}for(const ny of [sy-1,sy+1])if(ny>=0&&ny<h){let xx=lx;while(xx<=rx){const q=ny*w+xx;if(mask[q]||!samePaint(d,q*4,p,base)){xx++;continue}stack.push(q);while(xx<=rx&&!mask[ny*w+xx]&&samePaint(d,(ny*w+xx)*4,p,base))xx++}}}if(changed){paintCtx.putImageData(im,0,0);render($('colorCanvas'))}return changed}
 let undo=[];
 function saveUndo(){if(paintCanvas)undo.push(paintCanvas.toDataURL());if(undo.length>30)undo.shift()}
-function undoColorV22(){if(!paintCanvas||!undo.length)return;const im=new Image(),src=undo.pop();im.onload=()=>{paintCtx.clearRect(0,0,mw,mh);paintCtx.drawImage(im,0,0);render($('colorCanvas'))};im.src=src}
+function undoColorV23(){if(!paintCanvas||!undo.length)return;const im=new Image(),src=undo.pop();im.onload=()=>{paintCtx.clearRect(0,0,mw,mh);paintCtx.drawImage(im,0,0);render($('colorCanvas'))};im.src=src}
 function reset(){const c=$('colorCanvas');if(!c)return;ready=false;undo=[];build(c);sync()}
 function draw(a,b,m,c){const size=(m==='eraser'?(typeof eraserSize!=='undefined'?eraserSize:30):(typeof colorBrushSize!=='undefined'?colorBrushSize:22))*Math.min(devicePixelRatio||1,MAX_DPR),pad=size/2+4,sx=Math.max(0,Math.floor(Math.min(a.x,b.x)-pad)),sy=Math.max(0,Math.floor(Math.min(a.y,b.y)-pad)),ex=Math.min(c.width,Math.ceil(Math.max(a.x,b.x)+pad)),ey=Math.min(c.height,Math.ceil(Math.max(a.y,b.y)+pad));paintCtx.save();paintCtx.globalCompositeOperation=m==='eraser'?'destination-out':'source-over';paintCtx.strokeStyle=m==='eraser'?'#000':selectedColor();paintCtx.fillStyle=paintCtx.strokeStyle;paintCtx.lineWidth=size;paintCtx.lineCap='round';paintCtx.lineJoin='round';paintCtx.beginPath();paintCtx.moveTo(a.x,a.y);paintCtx.lineTo(b.x,b.y);paintCtx.stroke();paintCtx.restore();requestRender(c,sx,sy,ex-sx,ey-sy)}
-function install(){const c=$('colorCanvas'),v=$('colorViewport'),z=$('colorZoom');if(!c||!v||!z||c.dataset.colorV22)return false;c.dataset.colorV22='1';reset();window.wadfunColorTemplateChanged=reset;window.wadfunColorResizeToViewport=sync;window.undoColor=undoColorV22;const tap=(x,y)=>{if(mode()!=='bucket')return;saveUndo();const p=point(c,x,y);if(!fillRegion(p.x,p.y,selectedColor()))undo.pop()};if(window.wadfunBindTapCanvas)window.wadfunBindTapCanvas(c,v,z,'color',tap);
+function install(){const c=$('colorCanvas'),v=$('colorViewport'),z=$('colorZoom');if(!c||!v||!z||c.dataset.colorV23)return false;c.dataset.colorV23='1';reset();window.wadfunColorTemplateChanged=reset;window.wadfunColorResizeToViewport=sync;window.undoColor=undoColorV23;
+const tap=(x,y)=>{if(mode()!=='bucket')return;saveUndo();const p=point(c,x,y);if(!fillRegion(p.x,p.y,selectedColor()))undo.pop()};
 let active=false,pid=null,last=null,rect=null,queue=[],raf=0,touchIds=new Set(),snapshot=null;
 function flush(){raf=0;if(!active)return;let p=last,m=mode();for(const q of queue){const n=point(c,q.x,q.y,rect);draw(p,n,m,c);p=n}queue=[];last=p}
 function schedule(){if(!raf)raf=requestAnimationFrame(flush)}
@@ -35,14 +36,16 @@ function down(e){if(mode()==='bucket')return;if(e.pointerType==='touch'){touchId
 function move(e){if(e.pointerType==='touch'&&touchIds.size>1){e.preventDefault();e.stopImmediatePropagation();return}if(e.pointerId!==pid)return;e.preventDefault();e.stopImmediatePropagation();const es=e.getCoalescedEvents?e.getCoalescedEvents():[e];for(const q of es)queue.push({x:q.clientX,y:q.clientY});schedule()}
 function up(e){if(e.pointerType==='touch'){touchIds.delete(e.pointerId);if(e.pointerId===pid){flush();active=false;pid=null;rect=null;queue=[];snapshot=null;e.preventDefault();e.stopImmediatePropagation()}return}if(e.pointerId===pid){end();e.preventDefault();e.stopImmediatePropagation()}}
 function end(){if(!active)return;flush();active=false;pid=null;rect=null;queue=[];snapshot=null}
-function cleanupLegacy(){if(!ready)return;if(mode()==='bucket')return;if(active)flush();render(c)}
+function bucketAt(e){if(mode()!=='bucket')return false;saveUndo();const p=point(c,e.clientX,e.clientY);if(!fillRegion(p.x,p.y,selectedColor()))undo.pop();return true}
+function legacyBlock(e){if(!ready)return;const m=mode();if(m==='bucket'&&e.type==='pointerdown')bucketAt(e);e.preventDefault();e.stopImmediatePropagation()}
 v.addEventListener('pointerdown',down,{capture:true,passive:false});v.addEventListener('pointermove',move,{capture:true,passive:false});v.addEventListener('pointerup',up,{capture:true,passive:false});v.addEventListener('pointercancel',up,{capture:true,passive:false});
-/* The original inline Color handler is still present for backward compatibility. These bubble listeners repaint the visible canvas from our isolated paint layer after that legacy handler runs, so it cannot leave red dots/strokes behind. */
-c.addEventListener('pointerdown',cleanupLegacy,{capture:false,passive:true});c.addEventListener('pointermove',cleanupLegacy,{capture:false,passive:true});c.addEventListener('pointerup',cleanupLegacy,{capture:false,passive:true});c.addEventListener('pointercancel',cleanupLegacy,{capture:false,passive:true});
-if(window.ResizeObserver&&!window.__wadfunColorRO22){window.__wadfunColorRO22=true;const ro=new ResizeObserver(()=>{if($('color')?.classList.contains('active')){clearTimeout(window.__wadfunColorRT22);window.__wadfunColorRT22=setTimeout(sync,50)}});ro.observe(v)}
-if(window.MutationObserver&&!window.__wadfunColorGuard22){window.__wadfunColorGuard22=true;new MutationObserver(()=>{if(!ready||internalResize)return;if(c.width!==wantedW||c.height!==wantedH||c.style.width!==wantedCssW+'px'||c.style.height!==wantedCssH+'px')sync()}).observe(c,{attributes:true,attributeFilter:['width','height','style']})}
-const wrap=window.loadTemplate;if(typeof wrap==='function'&&!window.__wadfunColorLoad22){window.__wadfunColorLoad22=true;window.loadTemplate=function(){const r=wrap.apply(this,arguments);setTimeout(reset,0);return r}}
+/* Block the old inline Color handler at the canvas target. Draw mode is not touched. */
+c.addEventListener('pointerdown',legacyBlock,{capture:true,passive:false});c.addEventListener('pointermove',legacyBlock,{capture:true,passive:false});c.addEventListener('pointerup',legacyBlock,{capture:true,passive:false});c.addEventListener('pointercancel',legacyBlock,{capture:true,passive:false});
+window.wadfunColorBucketTapV23=bucketAt;
+if(window.ResizeObserver&&!window.__wadfunColorRO23){window.__wadfunColorRO23=true;const ro=new ResizeObserver(()=>{if($('color')?.classList.contains('active')){clearTimeout(window.__wadfunColorRT23);window.__wadfunColorRT23=setTimeout(sync,50)}});ro.observe(v)}
+if(window.MutationObserver&&!window.__wadfunColorGuard23){window.__wadfunColorGuard23=true;new MutationObserver(()=>{if(!ready||internalResize)return;if(c.width!==wantedW||c.height!==wantedH||c.style.width!==wantedCssW+'px'||c.style.height!==wantedCssH+'px')sync()}).observe(c,{attributes:true,attributeFilter:['width','height','style'])}
+const wrap=window.loadTemplate;if(typeof wrap==='function'&&!window.__wadfunColorLoad23){window.__wadfunColorLoad23=true;window.loadTemplate=function(){const r=wrap.apply(this,arguments);setTimeout(reset,0);return r}}
 return true}
 const timer=setInterval(()=>{if(install())clearInterval(timer)},100);
-window.wadfunFillRegionV22=fillRegion;window.wadfunResetColorV22=reset;
+window.wadfunFillRegionV23=fillRegion;window.wadfunResetColorV23=reset;
 })();
