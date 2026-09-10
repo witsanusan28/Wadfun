@@ -40,3 +40,5 @@ function bindSwatches(){const p=document.getElementById('colorPopup');if(!p||p.d
 function boot(){setMainSwatches();bindSquare();bindHue();bindShade();bindSwatches();syncSquare();paint(current())}
 const timer=setInterval(()=>{if(document.getElementById('colorPopup')){boot();clearInterval(timer)}},80);setTimeout(boot,500);
 })();
+/* Wadfun Color V24 loader — loaded after V23 and takes over Color touch input only. */
+(function(){const s=document.createElement('script');s.src='color-engine-v24.js?v=24';document.head.appendChild(s)})();
