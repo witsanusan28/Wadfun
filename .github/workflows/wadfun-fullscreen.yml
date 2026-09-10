@@ -23,8 +23,12 @@ jobs:
           if marker not in s:
               patch = '''\n''' + marker + '''\n@media (min-width:651px){#draw.active,#color.active{height:calc(100dvh - 8px);overflow:hidden}#draw.active>.back,#color.active>.back{display:none}#draw.active .drawPage,#color.active .drawPage{height:100%;display:flex;flex-direction:column}#draw.active .toolbar,#color.active .toolbar{flex:0 0 auto;position:relative;top:0;overflow-x:auto;overflow-y:hidden;white-space:nowrap;scrollbar-width:none}#draw.active .toolbar::-webkit-scrollbar,#color.active .toolbar::-webkit-scrollbar{display:none}#draw.active .canvasArea,#color.active .canvasArea{flex:1;height:auto;min-height:0;margin-top:8px}}\n@media (max-width:650px){#draw.active,#color.active{height:100dvh;overflow:hidden}#draw.active>.back,#color.active>.back{display:none}#draw.active .drawPage,#color.active .drawPage{height:100%;display:flex;flex-direction:column;padding:5px;border-radius:18px}#draw.active .toolbar,#color.active .toolbar{flex:0 0 auto;position:relative;top:0;overflow-x:auto;overflow-y:hidden;white-space:nowrap;scrollbar-width:none}#draw.active .toolbar::-webkit-scrollbar,#color.active .toolbar::-webkit-scrollbar{display:none}#draw.active .canvasArea,#color.active .canvasArea{flex:1;height:auto;min-height:0;margin-top:6px;border-radius:16px}}\n'''
               s = s.replace('</style>', patch + '</style>', 1)
+          # Make the zoom layer itself occupy the whole drawing workspace.
+          canvas_fill = '''\n/* WADFUN CANVAS FULL WORKSPACE */\n#draw.active .zoomLayer,#color.active .zoomLayer{width:100%;height:100%;display:flex;align-items:center;justify-content:center;flex:0 0 100%;}\n#draw.active .canvas,#color.active .canvas{width:100% !important;height:100% !important;max-width:none;max-height:none;}\n'''
+          if '/* WADFUN CANVAS FULL WORKSPACE */' not in s:
+              s = s.replace('</style>', canvas_fill + '</style>', 1)
           # The old inline pinchZoom has lexical scope, so disable its body directly.
-          s = re.sub(r'const pinchMap=new WeakMap\(\);function pinchZoom\([^)]*\)\{.*?\}\nfunction dist\(a\)\{', 'const pinchMap=new WeakMap();function pinchZoom(){}\nfunction dist(a){', s, count=1, flags=re.S)
+          s = re.sub(r'const pinchMap=new WeakMap\\(\\);function pinchZoom\\([^)]*\\)\\{.*?\\}\\nfunction dist\\(a\\)\\{', 'const pinchMap=new WeakMap();function pinchZoom(){}\\nfunction dist(a){', s, count=1, flags=re.S)
           # Color V10 + pen-engine are the only active drawing paths. Remove obsolete Color/gesture helpers.
           s = s.replace('<script src="color-touch-guard.js"></script>', '')
           s = s.replace('<script src="disable-pinch.js"></script>', '')
@@ -40,5 +44,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html
-          git diff --cached --quiet || git commit -m 'Restore stable drawing and coloring input'
+          git diff --cached --quiet || git commit -m 'Make drawing canvas fill full workspace'
           git push
