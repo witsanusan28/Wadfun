@@ -1,4 +1,4 @@
-/* Wadfun Color Engine V22 — remove the large starting dot from Color touch drawing. Draw mode untouched. */
+/* Wadfun Color Engine V22 — Color pen without legacy overlay or start dot. Draw mode untouched. */
 (function(){
 'use strict';
 const LINE_LUMA=248,MIN_ALPHA=18,PAINT_ALPHA=12,MAX_DPR=1.5;
@@ -25,7 +25,7 @@ function saveUndo(){if(paintCanvas)undo.push(paintCanvas.toDataURL());if(undo.le
 function undoColorV22(){if(!paintCanvas||!undo.length)return;const im=new Image(),src=undo.pop();im.onload=()=>{paintCtx.clearRect(0,0,mw,mh);paintCtx.drawImage(im,0,0);render($('colorCanvas'))};im.src=src}
 function reset(){const c=$('colorCanvas');if(!c)return;ready=false;undo=[];build(c);sync()}
 function draw(a,b,m,c){const size=(m==='eraser'?(typeof eraserSize!=='undefined'?eraserSize:30):(typeof colorBrushSize!=='undefined'?colorBrushSize:22))*Math.min(devicePixelRatio||1,MAX_DPR),pad=size/2+4,sx=Math.max(0,Math.floor(Math.min(a.x,b.x)-pad)),sy=Math.max(0,Math.floor(Math.min(a.y,b.y)-pad)),ex=Math.min(c.width,Math.ceil(Math.max(a.x,b.x)+pad)),ey=Math.min(c.height,Math.ceil(Math.max(a.y,b.y)+pad));paintCtx.save();paintCtx.globalCompositeOperation=m==='eraser'?'destination-out':'source-over';paintCtx.strokeStyle=m==='eraser'?'#000':selectedColor();paintCtx.fillStyle=paintCtx.strokeStyle;paintCtx.lineWidth=size;paintCtx.lineCap='round';paintCtx.lineJoin='round';paintCtx.beginPath();paintCtx.moveTo(a.x,a.y);paintCtx.lineTo(b.x,b.y);paintCtx.stroke();paintCtx.restore();requestRender(c,sx,sy,ex-sx,ey-sy)}
-function install(){const c=$('colorCanvas'),v=$('colorViewport'),z=$('colorZoom');if(!c||!v||!z||c.dataset.colorV21)return false;c.dataset.colorV21='1';reset();window.wadfunColorTemplateChanged=reset;window.wadfunColorResizeToViewport=sync;window.undoColor=undoColorV22;const tap=(x,y)=>{if(mode()!=='bucket')return;saveUndo();const p=point(c,x,y);if(!fillRegion(p.x,p.y,selectedColor()))undo.pop()};if(window.wadfunBindTapCanvas)window.wadfunBindTapCanvas(c,v,z,'color',tap);
+function install(){const c=$('colorCanvas'),v=$('colorViewport'),z=$('colorZoom');if(!c||!v||!z||c.dataset.colorV22)return false;c.dataset.colorV22='1';reset();window.wadfunColorTemplateChanged=reset;window.wadfunColorResizeToViewport=sync;window.undoColor=undoColorV22;const tap=(x,y)=>{if(mode()!=='bucket')return;saveUndo();const p=point(c,x,y);if(!fillRegion(p.x,p.y,selectedColor()))undo.pop()};if(window.wadfunBindTapCanvas)window.wadfunBindTapCanvas(c,v,z,'color',tap);
 let active=false,pid=null,last=null,rect=null,queue=[],raf=0,touchIds=new Set(),snapshot=null;
 function flush(){raf=0;if(!active)return;let p=last,m=mode();for(const q of queue){const n=point(c,q.x,q.y,rect);draw(p,n,m,c);p=n}queue=[];last=p}
 function schedule(){if(!raf)raf=requestAnimationFrame(flush)}
@@ -35,10 +35,13 @@ function down(e){if(mode()==='bucket')return;if(e.pointerType==='touch'){touchId
 function move(e){if(e.pointerType==='touch'&&touchIds.size>1){e.preventDefault();e.stopImmediatePropagation();return}if(e.pointerId!==pid)return;e.preventDefault();e.stopImmediatePropagation();const es=e.getCoalescedEvents?e.getCoalescedEvents():[e];for(const q of es)queue.push({x:q.clientX,y:q.clientY});schedule()}
 function up(e){if(e.pointerType==='touch'){touchIds.delete(e.pointerId);if(e.pointerId===pid){flush();active=false;pid=null;rect=null;queue=[];snapshot=null;e.preventDefault();e.stopImmediatePropagation()}return}if(e.pointerId===pid){end();e.preventDefault();e.stopImmediatePropagation()}}
 function end(){if(!active)return;flush();active=false;pid=null;rect=null;queue=[];snapshot=null}
+function cleanupLegacy(){if(!ready)return;if(mode()==='bucket')return;if(active)flush();render(c)}
 v.addEventListener('pointerdown',down,{capture:true,passive:false});v.addEventListener('pointermove',move,{capture:true,passive:false});v.addEventListener('pointerup',up,{capture:true,passive:false});v.addEventListener('pointercancel',up,{capture:true,passive:false});
-if(window.ResizeObserver&&!window.__wadfunColorRO21){window.__wadfunColorRO21=true;const ro=new ResizeObserver(()=>{if($('color')?.classList.contains('active')){clearTimeout(window.__wadfunColorRT21);window.__wadfunColorRT21=setTimeout(sync,50)}});ro.observe(v)}
-if(window.MutationObserver&&!window.__wadfunColorGuard21){window.__wadfunColorGuard21=true;new MutationObserver(()=>{if(!ready||internalResize)return;if(c.width!==wantedW||c.height!==wantedH||c.style.width!==wantedCssW+'px'||c.style.height!==wantedCssH+'px')sync()}).observe(c,{attributes:true,attributeFilter:['width','height','style']})}
-const wrap=window.loadTemplate;if(typeof wrap==='function'&&!window.__wadfunColorLoad21){window.__wadfunColorLoad21=true;window.loadTemplate=function(){const r=wrap.apply(this,arguments);setTimeout(reset,0);return r}}
+/* The original inline Color handler is still present for backward compatibility. These bubble listeners repaint the visible canvas from our isolated paint layer after that legacy handler runs, so it cannot leave red dots/strokes behind. */
+c.addEventListener('pointerdown',cleanupLegacy,{capture:false,passive:true});c.addEventListener('pointermove',cleanupLegacy,{capture:false,passive:true});c.addEventListener('pointerup',cleanupLegacy,{capture:false,passive:true});c.addEventListener('pointercancel',cleanupLegacy,{capture:false,passive:true});
+if(window.ResizeObserver&&!window.__wadfunColorRO22){window.__wadfunColorRO22=true;const ro=new ResizeObserver(()=>{if($('color')?.classList.contains('active')){clearTimeout(window.__wadfunColorRT22);window.__wadfunColorRT22=setTimeout(sync,50)}});ro.observe(v)}
+if(window.MutationObserver&&!window.__wadfunColorGuard22){window.__wadfunColorGuard22=true;new MutationObserver(()=>{if(!ready||internalResize)return;if(c.width!==wantedW||c.height!==wantedH||c.style.width!==wantedCssW+'px'||c.style.height!==wantedCssH+'px')sync()}).observe(c,{attributes:true,attributeFilter:['width','height','style']})}
+const wrap=window.loadTemplate;if(typeof wrap==='function'&&!window.__wadfunColorLoad22){window.__wadfunColorLoad22=true;window.loadTemplate=function(){const r=wrap.apply(this,arguments);setTimeout(reset,0);return r}}
 return true}
 const timer=setInterval(()=>{if(install())clearInterval(timer)},100);
 window.wadfunFillRegionV22=fillRegion;window.wadfunResetColorV22=reset;
