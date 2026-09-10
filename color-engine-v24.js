@@ -27,6 +27,7 @@ function te(e){for(const t of e.changedTouches)touches.delete(t.identifier);if(t
 function fillAt(t){snap();const p=pt(t.clientX,t.clientY);if(!fill(p.x,p.y))undo.pop()}
 c.addEventListener('touchstart',ts,{capture:true,passive:false});c.addEventListener('touchmove',tm,{capture:true,passive:false});c.addEventListener('touchend',te,{capture:true,passive:false});c.addEventListener('touchcancel',te,{capture:true,passive:false});
 ['pointerdown','pointermove','pointerup','pointercancel'].forEach(t=>c.addEventListener(t,block,{capture:true,passive:false}));
+v.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&mode()==='bucket'){const p=pt(e.clientX,e.clientY);snap();if(!fill(p.x,p.y))undo.pop();e.preventDefault();e.stopImmediatePropagation()}},{capture:true,passive:false});
 let mouse=false,lastM=null;function pd(e){if(e.pointerType==='touch'||mode()==='bucket')return;block(e);snap();lastM=pt(e.clientX,e.clientY);mouse=true}function pm(e){if(!mouse)return;block(e);const p=pt(e.clientX,e.clientY);eraseDraw(lastM,p,mode());lastM=p}function pu(e){if(!mouse)return;block(e);mouse=false;lastM=null}
 v.addEventListener('pointerdown',pd,{capture:true,passive:false});v.addEventListener('pointermove',pm,{capture:true,passive:false});v.addEventListener('pointerup',pu,{capture:true,passive:false});v.addEventListener('pointercancel',pu,{capture:true,passive:false});
 if(window.ResizeObserver&&!window.__wadfunV24RO){window.__wadfunV24RO=true;new ResizeObserver(()=>{if($('color')?.classList.contains('active'))sync()}).observe(v)}
