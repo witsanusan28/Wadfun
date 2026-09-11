@@ -35,3 +35,4 @@ jobs:
           git config user.email 'actions@github.com'
           git add index.html
           if git diff --cached --quiet; then echo 'Already connected'; else git commit -m 'Connect Color Library V4 to app'; git push; fi
+      # V4 connection verification trigger
