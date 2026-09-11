@@ -21,9 +21,12 @@ const { window } = dom;
 global.window = window;
 global.document = window.document;
 global.devicePixelRatio = 1;
+window.scrollTo = () => {};
+
+global.setInterval = setInterval;
+global.clearInterval = clearInterval;
 
 window.eval(source);
-// The production library boots from DOMContentLoaded when evaluated while the DOM is loading.
 window.document.dispatchEvent(new window.Event('DOMContentLoaded'));
 
 const categories = window.document.getElementById('categories');
@@ -63,3 +66,4 @@ assert(selectedAfter.textContent.includes('✓'), 'Original picture must still d
 assert.strictEqual(window.wadfunColorLibraryState.index, 1, 'Selected picture index must remain 1 after Change Picture');
 
 console.log('PASS: Canvas -> Change Picture opens #picker, keeps #categories closed, preserves the original category, and preserves the original picture ✓');
+process.exit(0);
