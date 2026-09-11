@@ -22,14 +22,14 @@ global.window = window;
 global.document = window.document;
 global.devicePixelRatio = 1;
 
-// Load the real production Color Library code, not a test double.
 window.eval(source);
+// The production library boots from DOMContentLoaded when evaluated while the DOM is loading.
+window.document.dispatchEvent(new window.Event('DOMContentLoaded'));
 
 const categories = window.document.getElementById('categories');
 const picker = window.document.getElementById('picker');
 const color = window.document.getElementById('color');
 
-// Start from a known category, then select a specific picture in that category.
 const categoryButton = window.document.querySelector('#categoriesGrid .cat[data-cat="food"]');
 assert(categoryButton, 'Food category button was not rendered');
 categoryButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
@@ -41,29 +41,22 @@ selectedBefore.dispatchEvent(new window.MouseEvent('click', { bubbles: true, can
 assert.strictEqual(window.wadfunColorLibraryState.category, 'food', 'Selected category must be food before Change Picture');
 assert.strictEqual(window.wadfunColorLibraryState.index, 1, 'Selected picture index must be 1 before Change Picture');
 
-// Put the app in Canvas state before simulating the user action.
 categories.classList.remove('active');
 picker.classList.remove('active');
 color.classList.add('active');
 
 const changeButton = window.document.getElementById('wadfunChangePicture');
 assert(changeButton, 'Change Picture button was not installed');
-
-// Simulate the actual user action: Canvas -> click "เปลี่ยนรูป".
 changeButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
 
-// 1) The picker must open and categories must stay closed.
 assert(picker.classList.contains('active'), '#picker must be active after clicking Change Picture');
 assert(!categories.classList.contains('active'), '#categories must not be active after clicking Change Picture');
 assert.notStrictEqual(picker.style.display, 'none', '#picker must not be hidden after clicking Change Picture');
 assert.strictEqual(categories.style.getPropertyValue('display'), 'none', '#categories must be hidden after clicking Change Picture');
-
-// 2) The original category must still be displayed.
 assert.strictEqual(window.document.getElementById('pickerGrid').dataset.wadfunCategory, 'food', 'Original category must remain selected');
 assert.strictEqual(window.wadfunColorLibraryState.category, 'food', 'State category must remain food after Change Picture');
 assert.strictEqual(window.document.getElementById('pickerTitle').textContent, '🍎 อาหาร 🍎', 'Picker title must show the original category');
 
-// 3) The original picture must still carry the selected marker (✓).
 const selectedAfter = window.document.querySelector('#pickerGrid .template.selected[data-index="1"]');
 assert(selectedAfter, 'Original picture must remain selected after Change Picture');
 assert(selectedAfter.textContent.includes('✓'), 'Original picture must still display the ✓ marker after Change Picture');
