@@ -24,9 +24,9 @@ jobs:
           for (const key of ['animals','food','vehicles','nature','fantasy']) {
             if (!s.includes(`${key}:`)) throw new Error(`missing category: ${key}`);
           }
-          for (const token of ['wadfunColorLibraryData','wadfunRenderActiveColorTemplate','wadfunClearActiveColorTemplate','wadfunColorLibraryResetPicker']) {
+          for (const token of ['wadfunColorLibraryData','wadfunRenderActiveColorTemplate','wadfunClearActiveColorTemplate','wadfunColorLibraryResetPicker','showPicker']) {
             if (!s.includes(token)) throw new Error(`missing contract: ${token}`);
           }
-          if (!s.includes('__wadfunColorLibraryV4')) throw new Error('wrong library owner version');
-          console.log('Color Library contract OK');
+          if (!s.includes('__wadfunColorLibraryV5')) throw new Error('wrong library owner version');
+          console.log('Color Library V5 contract OK');
           NODE
