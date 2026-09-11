@@ -1,0 +1,37 @@
+name: Wadfun Color Library Connect
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  connect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Connect Color Library before color engine
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          tag='<script src="color-library.js"></script>'
+          if tag not in s:
+              marker='<script src="color-engine.js"></script>'
+              if marker in s:
+                  s=s.replace(marker,tag+'\n'+marker,1)
+              else:
+                  s=s.replace('</body>',tag+'\n</body>',1)
+              p.write_text(s,encoding='utf-8')
+          print('Color Library connected:', tag in s)
+          PY
+      - name: Commit connection
+        run: |
+          git config user.name 'Wadfun Bot'
+          git config user.email 'actions@github.com'
+          git add index.html
+          if git diff --cached --quiet; then echo 'Already connected'; else git commit -m 'Connect Color Library V4 to app'; git push; fi
