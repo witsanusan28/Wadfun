@@ -1,22 +1,26 @@
-/* Wadfun Color Engine V28 — robust tool detection + eraser clears filled color and ink */
+/* Wadfun Color Engine V29 — explicit tool mode lock + eraser clears filled color and ink */
 (function(){
 'use strict';
 const $=id=>document.getElementById(id),MAX_DPR=1.5,MIN_ALPHA=18,LINE_LUMA=205;
 const rgb=h=>{h=(h||'#e53935').replace('#','');if(h.length===3)h=h.split('').map(x=>x+x).join('');return[parseInt(h.slice(0,2),16)||0,parseInt(h.slice(2,4),16)||0,parseInt(h.slice(4,6),16)||0]};
 const lum=(r,g,b)=>.299*r+.587*g+.114*b;
 function color(){const s=window.wadfunSelectedColor;return /^#[0-9a-f]{6}$/i.test(s||'')?s:'#e53935'}
+function classify(b){const t=((b?.textContent||'')+' '+(b?.id||'')).toLowerCase();if(/ยางลบ|eraser|erase/.test(t))return'eraser';if(/ระบาย|pen|brush|ดินสอ|ปากกา/.test(t))return'pen';if(/ถังสี|เทสี|bucket|fill/.test(t))return'bucket';return null}
 function mode(){
+  if(window.wadfunColorToolMode)return window.wadfunColorToolMode;
   if($('colorEraseBtn')?.classList.contains('on')||$('colorEraserBtn')?.classList.contains('on'))return'eraser';
   if($('colorPenBtn')?.classList.contains('on'))return'pen';
   const root=$('color')?.querySelector('.toolbar');
-  const on=[...(root?.querySelectorAll('button.on')||[])];
-  for(const b of on){
-    const t=((b.textContent||'')+' '+(b.id||'')).toLowerCase();
-    if(/ยางลบ|eraser|erase/.test(t))return'eraser';
-    if(/ระบาย|pen|brush|ดินสอ|ปากกา/.test(t))return'pen';
-    if(/ถังสี|เทสี|bucket|fill/.test(t))return'bucket';
-  }
+  for(const b of [...(root?.querySelectorAll('button.on')||[])]){const m=classify(b);if(m)return m}
   return'bucket'
+}
+function installToolModeWatcher(){
+  const root=$('color')?.querySelector('.toolbar');if(!root||root.dataset.v29tools)return;
+  root.dataset.v29tools='1';
+  const set=e=>{const b=e.target?.closest?.('button');const m=classify(b);if(m){window.wadfunColorToolMode=m;if(m==='eraser'){for(const x of root.querySelectorAll('button'))if(classify(x)==='eraser')x.classList.add('on')}}};
+  root.addEventListener('click',set,true);
+  root.addEventListener('touchend',set,true);
+  root.addEventListener('pointerup',set,true);
 }
 let c,v,paint,ink,line,pc,ic,mask,w=0,h=0,ready=false,undo=[],redo=[],base=null;
 function pt(x,y){const r=c.getBoundingClientRect();return{x:Math.max(0,Math.min(c.width-1,(x-r.left)*c.width/r.width)),y:Math.max(0,Math.min(c.height-1,(y-r.top)*c.height/r.height))}}
@@ -31,15 +35,16 @@ function doRedo(){if(!ready||!redo.length)return false;const target=redo.pop(),c
 function resetHistory(){undo=[];redo=[];syncButtons()}
 function captureTemplate(){if(!c||!c.width)return false;const src=c.getContext('2d',{willReadFrequently:true}).getImageData(0,0,c.width,c.height);base=document.createElement('canvas');base.width=c.width;base.height=c.height;base.getContext('2d').putImageData(src,0,0);buildFromSource(src);resetHistory();return true}
 function fresh(){if(!c)return false;if(base&&base.width===c.width&&base.height===c.height){buildFromSource(base.getContext('2d',{willReadFrequently:true}).getImageData(0,0,w,h))}else buildFromSource(null);resetHistory();return true}
-function inkMask(){const d=ic.getImageData(0,0,w,h).data,m=new Uint8Array(w*h);for(let q=0,i=0;q<m.length;q++,i+=4)if(d[i+3]>=30)m[q]=1;return m}
-function draw(a,b,m){const s=(m==='eraser'?(typeof eraserSize!=='undefined'?eraserSize:30):(typeof colorBrushSize!=='undefined'?colorBrushSize:22))*Math.min(devicePixelRatio||1,MAX_DPR);if(m==='eraser'){for(const ctx of [pc,ic]){ctx.save();ctx.globalCompositeOperation='destination-out';ctx.globalAlpha=1;ctx.lineWidth=s;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.restore()}}else{ic.save();ic.globalCompositeOperation='source-over';ic.globalAlpha=1;ic.strokeStyle=color();ic.lineWidth=s;ic.lineCap='round';ic.lineJoin='round';ic.beginPath();ic.moveTo(a.x,a.y);ic.lineTo(b.x,b.y);ic.stroke();ic.restore()}render()}
+function inkMask(){const d=ic.getImageData(0,0,w,h).data,m=new Uint8Array(w*h);for(let q=0;q<m.length;q++)if(d[q*4+3]>=30)m[q]=1;return m}
+function erase(a,b){const s=(typeof eraserSize!=='undefined'?eraserSize:30)*Math.min(devicePixelRatio||1,MAX_DPR);for(const ctx of [pc,ic]){ctx.save();ctx.globalCompositeOperation='destination-out';ctx.globalAlpha=1;ctx.lineWidth=s;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.restore()}render()}
+function draw(a,b,m){if(m==='eraser'){erase(a,b);return}const s=(typeof colorBrushSize!=='undefined'?colorBrushSize:22)*Math.min(devicePixelRatio||1,MAX_DPR);ic.save();ic.globalCompositeOperation='source-over';ic.globalAlpha=1;ic.strokeStyle=color();ic.lineWidth=s;ic.lineCap='round';ic.lineJoin='round';ic.beginPath();ic.moveTo(a.x,a.y);ic.lineTo(b.x,b.y);ic.stroke();ic.restore();render()}
 function fill(x,y){x=Math.max(0,Math.min(w-1,x|0));y=Math.max(0,Math.min(h-1,y|0));const start=y*w+x;if(mask[start])return false;const im=pc.getImageData(0,0,w,h),d=im.data,n=w*h,bar=inkMask(),seen=new Uint8Array(n),stack=[start],t=rgb(color()),k0=start*4,baseEmpty=d[k0+3]<20,p=[d[k0],d[k0+1],d[k0+2]];let changed=false;const same=i=>{if(mask[i]||bar[i]||seen[i])return false;const k=i*4;if(baseEmpty)return d[k+3]<20;return d[k+3]>=20&&Math.abs(d[k]-p[0])+Math.abs(d[k+1]-p[1])+Math.abs(d[k+2]-p[2])<=12};while(stack.length){const q=stack.pop();if(!same(q))continue;seen[q]=1;const k=q*4;d[k]=t[0];d[k+1]=t[1];d[k+2]=t[2];d[k+3]=255;changed=true;if(q%w)stack.push(q-1);if(q%w<w-1)stack.push(q+1);if(q>=w)stack.push(q-w);if(q<n-w)stack.push(q+w)}if(changed)pc.putImageData(im,0,0);render();return changed}
 function syncButtons(){window.wadfunColorUndo=doUndo;window.wadfunColorRedo=doRedo;window.undoColor=doUndo;window.redoColor=doRedo;window.wadfunColorHistoryState=()=>({undo:undo.length,redo:redo.length});const root=$('color')?.querySelector('.toolbar');if(!root)return;for(const b of root.querySelectorAll('button')){const t=(b.textContent||'').toLowerCase();if(t.includes('undo')||t.includes('ย้อน'))b.disabled=!undo.length;if(t.includes('redo')||t.includes('ทำซ้ำ'))b.disabled=!redo.length}}
 function wireButtons(){const root=$('color')?.querySelector('.toolbar');if(!root||root.dataset.v27buttons)return;root.dataset.v27buttons='1';const buttons=[...root.querySelectorAll('button')];let undoBtn=buttons.find(b=>/undo|ย้อน/i.test(b.textContent||''));let redoBtn=buttons.find(b=>/redo|ทำซ้ำ/i.test(b.textContent||''));if(!undoBtn){undoBtn=document.createElement('button');undoBtn.className='tb';undoBtn.type='button';undoBtn.id='colorUndoBtn';undoBtn.innerHTML='<i>↩️</i><span>ย้อนกลับ</span>';root.appendChild(undoBtn)}if(!redoBtn){redoBtn=document.createElement('button');redoBtn.className='tb';redoBtn.type='button';redoBtn.id='colorRedoBtn';redoBtn.innerHTML='<i>↪️</i><span>ทำซ้ำ</span>';root.appendChild(redoBtn)}undoBtn.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();doUndo()},true);redoBtn.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();doRedo()},true);syncButtons()}
 function block(e){e.preventDefault();e.stopImmediatePropagation()}
-function install(){if(!c||!v||c.dataset.v28)return;c.dataset.v28='1';fresh();window.wadfunColorTemplateReady=captureTemplate;window.wadfunColorFreshReset=fresh;window.wadfunColorResizeToViewport=sync;window.wadfunColorResetV24=fresh;window.wadfunColorResetV25=fresh;window.wadfunEnsureColorLineOverlay=render;let touches=new Map(),last=null,mouse=false;
+function install(){if(!c||!v||c.dataset.v29)return;c.dataset.v29='1';fresh();installToolModeWatcher();window.wadfunColorTemplateReady=captureTemplate;window.wadfunColorFreshReset=fresh;window.wadfunColorResizeToViewport=sync;window.wadfunColorResetV24=fresh;window.wadfunColorResetV25=fresh;window.wadfunEnsureColorLineOverlay=render;let touches=new Map(),last=null,mouse=false;
 function touchStart(e){if(mode()==='bucket'){if(touches.size)return;touches.set(e.changedTouches[0].identifier,true);const t=e.changedTouches[0],p=pt(t.clientX,t.clientY);pushHistory();if(!fill(p.x,p.y))undo.pop();e.preventDefault();e.stopImmediatePropagation();return}for(const t of e.changedTouches)touches.set(t.identifier,true);if(touches.size>1){last=null;return}const t=e.changedTouches[0];pushHistory();last=pt(t.clientX,t.clientY);e.preventDefault();e.stopImmediatePropagation()}
-function touchMove(e){if(touches.size!==1||!last)return;const t=e.touches[0],p=pt(t.clientX,t.clientY);draw(last,p,mode());last=p;e.preventDefault();e.stopImmediatePropagation()}
+function touchMove(e){if(touches.size!==1||!last)return;const id=[...touches.keys()][0],t=[...e.touches].find(x=>x.identifier===id)||e.touches[0];if(!t)return;const p=pt(t.clientX,t.clientY);draw(last,p,mode());last=p;e.preventDefault();e.stopImmediatePropagation()}
 function touchEnd(e){for(const t of e.changedTouches)touches.delete(t.identifier);if(!touches.size)last=null;e.preventDefault();e.stopImmediatePropagation()}
 c.addEventListener('touchstart',touchStart,{capture:true,passive:false});c.addEventListener('touchmove',touchMove,{capture:true,passive:false});c.addEventListener('touchend',touchEnd,{capture:true,passive:false});c.addEventListener('touchcancel',touchEnd,{capture:true,passive:false});
 function pd(e){if(e.pointerType==='touch'||mode()==='bucket')return;block(e);pushHistory();last=pt(e.clientX,e.clientY);mouse=true}function pm(e){if(!mouse)return;block(e);const p=pt(e.clientX,e.clientY);draw(last,p,mode());last=p}function pu(e){if(!mouse)return;block(e);mouse=false;last=null}v.addEventListener('pointerdown',pd,{capture:true,passive:false});v.addEventListener('pointermove',pm,{capture:true,passive:false});v.addEventListener('pointerup',pu,{capture:true,passive:false});v.addEventListener('pointercancel',pu,{capture:true,passive:false});wireButtons();window.addEventListener('resize',()=>{if($('color')?.classList.contains('active'))sync()});}
