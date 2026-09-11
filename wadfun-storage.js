@@ -1,4 +1,4 @@
-/* Wadfun Storage V1 — IndexedDB artwork storage
+/* Wadfun Storage V2 — IndexedDB artwork storage + reliable mode metadata
  * Intentionally isolated from responsive-engine.js and drawing/color engines.
  */
 (function(){
@@ -60,6 +60,15 @@
     }));
   }
 
+  // Older gallery records can miss/incorrectly carry mode metadata.
+  // Coloring records created by Wadfun carry a color-library category,
+  // so use that as a safe fallback when the stored mode says draw.
+  function normalizeArtwork(artwork){
+    if(!artwork) return artwork;
+    if(artwork.mode !== 'color' && artwork.category) return Object.assign({},artwork,{mode:'color'});
+    return artwork;
+  }
+
   async function init(){
     await open();
     return true;
@@ -69,10 +78,13 @@
     if(!data || typeof data !== 'object') throw new TypeError('Artwork data is required');
     if(!data.imageData) throw new TypeError('imageData is required');
     const now = Date.now();
+    const activeScreen = document.querySelector('.screen.active')?.id;
+    const detectedMode = activeScreen === 'color' ? 'color' : activeScreen === 'draw' ? 'draw' : data.mode;
     const artwork = Object.assign({},data,{
       id: data.id || id(),
       name: data.name || 'ผลงานไม่มีชื่อ',
       category: data.category || '',
+      mode: detectedMode || 'draw',
       createdAt: data.createdAt || now,
       updatedAt: now
     });
@@ -82,12 +94,13 @@
 
   async function getArtwork(artworkId){
     if(!artworkId) return null;
-    return transaction('readonly',store=>request(store.get(artworkId)));
+    const artwork = await transaction('readonly',store=>request(store.get(artworkId)));
+    return normalizeArtwork(artwork);
   }
 
   async function getAllArtworks(){
     const items = await transaction('readonly',store=>request(store.getAll()));
-    return (items || []).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+    return (items || []).map(normalizeArtwork).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
   }
 
   async function updateArtwork(artworkId,patch){
@@ -96,7 +109,7 @@
     if(!current) return null;
     const updated = Object.assign({},current,patch||{}, {id:artworkId,updatedAt:Date.now()});
     await transaction('readwrite',store=>request(store.put(updated)));
-    return updated;
+    return normalizeArtwork(updated);
   }
 
   async function deleteArtwork(artworkId){
