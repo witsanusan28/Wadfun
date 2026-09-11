@@ -32,12 +32,14 @@ window.saveCanvas = () => null;
 window.finishCanvas = () => {};
 
 eval(fs.readFileSync('color-picker-reset-v2.js', 'utf8'));
-window.finishCanvas('colorCanvas', '🖍️', 'ทดสอบ');
 
-assert(document.getElementById('finish').classList.contains('active'), 'finish screen should become active');
-assert(document.getElementById('finishImg').src.startsWith('data:image/jpeg'), 'finish preview should receive an exported image');
-const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('\n');
-assert(css.includes('flex-wrap:wrap'), 'mobile toolbar must wrap instead of forcing horizontal scroll');
-assert(css.includes('overflow-x:hidden'), 'mobile toolbar must hide horizontal overflow');
-
-console.log('Color Workspace Fix V5 behavior OK');
+setTimeout(() => {
+  window.finishCanvas('colorCanvas', '🖍️', 'ทดสอบ');
+  assert(document.getElementById('finish').classList.contains('active'), 'finish screen should become active');
+  assert(document.getElementById('finishImg').src.startsWith('data:image/jpeg'), 'finish preview should receive an exported image');
+  const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('\n');
+  assert(css.includes('flex-wrap:wrap'), 'mobile toolbar must wrap instead of forcing horizontal scroll');
+  assert(css.includes('overflow-x:hidden'), 'mobile toolbar must hide horizontal overflow');
+  console.log('Color Workspace Fix V5 behavior OK');
+  process.exit(0);
+}, 650);
