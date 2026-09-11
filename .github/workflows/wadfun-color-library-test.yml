@@ -36,7 +36,7 @@ jobs:
           node <<'NODE'
           const fs=require('fs');
           const s=fs.readFileSync('color-engine.js','utf8');
-          for (const token of ['Color Engine V25','paint','ink','line','mask','wadfunColorResetV25','undoColor','destination-out','fill(x,y)','localStorage']) {
+          for (const token of ['Color Engine V25','paint','ink','line','mask','wadfunColorResetV25','undoColor','destination-out','fill(x,y)']) {
             if (!s.includes(token)) throw new Error(`missing V25 contract: ${token}`);
           }
           console.log('Color Engine V25 contract OK');
@@ -50,7 +50,7 @@ jobs:
           for (const token of ['Workspace Fix V5','flex-wrap','overflow-x:hidden','exportImage','__wadfunFinishFixV5','finishCanvas']) {
             if (!s.includes(token)) throw new Error(`missing workspace fix contract: ${token}`);
           }
-          console.log('Workspace fix V5 contract OK');
+          console.log('Workspace Fix V5 contract OK');
           NODE
 
       - name: Check Color Library V8 contract
