@@ -10,13 +10,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Check JavaScript syntax
         run: |
           node --check color-library.js
           node --check color-library-fix.js
           node --check color-picker-reset-v2.js
           node --check color-picker-controller.js
-      - name: Check Color Library V6 contract
+          node --check color-engine-v24.js
+
+      - name: Check Color Library V7 contract
         run: |
           node <<'NODE'
           const fs=require('fs');
@@ -24,20 +27,23 @@ jobs:
           for (const key of ['animals','food','vehicles','nature','fantasy']) {
             if (!s.includes(`${key}:`)) throw new Error(`missing category: ${key}`);
           }
-          for (const token of ['wadfunColorLibraryData','renderCategories','renderPictures','showCategories','showPicker','choosePicture','wadfunRenderActiveColorTemplate']) {
+          for (const token of ['wadfunColorLibraryData','renderCategories','renderPictures','showCategories','showPicker','choosePicture','directColorScreen','renderSelected','wadfunChangePicture','wadfunColorLibraryState']) {
             if (!s.includes(token)) throw new Error(`missing contract: ${token}`);
           }
-          if (!s.includes('__wadfunColorLibraryV6')) throw new Error('wrong library owner version');
+          if (!s.includes('__wadfunColorLibraryV7')) throw new Error('wrong library owner version');
           if (!s.includes('#categoriesGrid .cat')) throw new Error('category click route missing');
           if (!s.includes('#pickerGrid .template')) throw new Error('picture click route missing');
-          console.log('Color Library V6 contract OK');
+          if (!s.includes('stopImmediatePropagation')) throw new Error('click isolation missing');
+          if (!s.includes("changePicture(){showPicker()}")) throw new Error('persistent picker return missing');
+          console.log('Color Library V7 contract OK');
           NODE
+
       - name: Verify HTML picker targets exist
         run: |
           node <<'NODE'
           const fs=require('fs');
           const s=fs.readFileSync('index.html','utf8');
-          for (const id of ['categories','categoriesGrid','picker','pickerGrid','colorCanvas']) {
+          for (const id of ['categories','categoriesGrid','picker','pickerGrid','colorCanvas','colorViewport']) {
             if (!s.includes(`id="${id}"`)) throw new Error(`missing HTML target: ${id}`);
           }
           if (!s.includes('color-library.js')) throw new Error('color-library.js is not loaded by index.html');
