@@ -1,34 +1,130 @@
-/* Wadfun Color Library V4 — single authoritative picker */
+/* Wadfun Color Library V5 — category screen -> picture screen -> color canvas */
 (function(){
 'use strict';
-if(window.__wadfunColorLibraryV4)return;window.__wadfunColorLibraryV4=true;
+if(window.__wadfunColorLibraryV5)return;window.__wadfunColorLibraryV5=true;
+
 const data={
- animals:{name:'สัตว์ 🐾',icon:'🐾',items:[['แมว','🐱','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><g fill="white" stroke="#111" stroke-width="12"><path d="M105 190L120 70l90 75q40-20 80 0l90-75 15 120q35 45 15 120-35 105-160 105T90 310q-20-75 15-120z"/><circle cx="190" cy="245" r="13"/><circle cx="310" cy="245" r="13"/><path d="M235 285q15 15 30 0M250 300v35" fill="none"/></g></svg>'],['สุนัข','🐶','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><g fill="white" stroke="#111" stroke-width="12"><path d="M115 175Q70 80 150 105l55 55q45-20 90 0l55-55q80-25 35 70 35 55 15 125-35 105-150 105T100 300q-20-70 15-125z"/><circle cx="190" cy="245" r="13"/><circle cx="310" cy="245" r="13"/></g></svg>'],['ปลา','🐟','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><g fill="white" stroke="#111" stroke-width="12"><path d="M80 250Q190 105 360 205l70-65v220l-70-65Q190 395 80 250z"/><circle cx="325" cy="230" r="13"/></g></svg>'],['ผีเสื้อ','🦋','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><g fill="white" stroke="#111" stroke-width="12"><path d="M250 250Q155 90 80 130q-45 100 95 175Q35 290 90 400q100 20 160-105M250 250Q345 90 420 130q45 100-95 175 140-15 85 95-100 20-160-105M250 155v220" fill="none"/></g></svg>']]},
- food:{name:'อาหาร 🍎',icon:'🍎',items:[['แอปเปิล','🍎','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><path d="M250 165Q130 105 85 230q-25 150 165 205 190-55 165-205-45-125-165-65z" fill="white" stroke="#111" stroke-width="12"/></svg>'],['แตงโม','🍉','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><path d="M70 180h360q-10 190-180 190T70 180z" fill="white" stroke="#111" stroke-width="12"/></svg>'],['ไอศกรีม','🍦','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><path d="M135 210q0-100 115-100t115 100H135zM140 210h220L250 420z" fill="white" stroke="#111" stroke-width="12"/></svg>']]},
- vehicles:{name:'ยานพาหนะ 🚗',icon:'🚗',items:[['รถยนต์','🚗','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><path d="M90 300l45-105h230l45 105v90H90z" fill="white" stroke="#111" stroke-width="12"/><circle cx="155" cy="390" r="35" fill="white" stroke="#111" stroke-width="12"/><circle cx="345" cy="390" r="35" fill="white" stroke="#111" stroke-width="12"/></svg>'],['จรวด','🚀','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><path d="M250 60q100 80 100 220l-45 80h-110l-45-80Q150 140 250 60z" fill="white" stroke="#111" stroke-width="12"/><circle cx="250" cy="190" r="32" fill="white" stroke="#111" stroke-width="12"/></svg>'],['เครื่องบิน','✈️','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><path d="M70 245l150-20 80-120h55l-30 115 100 15q45 8 0 30l-100 15 30 115h-55l-80-120-150-20q-45-5 0-10z" fill="white" stroke="#111" stroke-width="12"/></svg>']]},
- nature:{name:'ธรรมชาติ 🌈',icon:'🌈',items:[['ดอกไม้','🌸','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><circle cx="250" cy="220" r="45" fill="white" stroke="#111" stroke-width="12"/><circle cx="180" cy="175" r="55" fill="white" stroke="#111" stroke-width="12"/><circle cx="320" cy="175" r="55" fill="white" stroke="#111" stroke-width="12"/><path d="M250 255v180" fill="none" stroke="#111" stroke-width="12"/></svg>'],['ดวงอาทิตย์','☀️','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><circle cx="250" cy="250" r="90" fill="white" stroke="#111" stroke-width="12"/><path d="M250 55v70M250 375v70M55 250h70M375 250h70" stroke="#111" stroke-width="12"/></svg>'],['เมฆ','☁️','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><path d="M100 330q0-80 80-80 20-90 105-65 55 10 60 70 75-10 75 75 0 55-65 55H165q-65 0-65-55z" fill="white" stroke="#111" stroke-width="12"/></svg>']]},
- fantasy:{name:'แฟนตาซี 🦖',icon:'🦖',items:[['ไดโนเสาร์','🦖','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><path d="M110 360q-25-115 55-175 60-45 145-5l55-75 65 55-75 55q15 65-25 110l45 55H280l-25-65-45 65z" fill="white" stroke="#111" stroke-width="12"/></svg>'],['จรวดอวกาศ','🌟','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><path d="M250 75q75 70 75 170v95H175v-95q0-100 75-170z" fill="white" stroke="#111" stroke-width="12"/><circle cx="250" cy="205" r="30" fill="white" stroke="#111" stroke-width="12"/></svg>']]}
+ animals:{name:'สัตว์ 🐾',icon:'🐾',items:[
+  ['แมว','🐱','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><g fill="white" stroke="#111" stroke-width="12"><path d="M105 190L120 70l90 75q40-20 80 0l90-75 15 120q35 45 15 120-35 105-160 105T90 310q-20-75 15-120z"/><circle cx="190" cy="245" r="13"/><circle cx="310" cy="245" r="13"/><path d="M235 285q15 15 30 0M250 300v35" fill="none"/></g></svg>'],
+  ['สุนัข','🐶','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><g fill="white" stroke="#111" stroke-width="12"><path d="M115 175Q70 80 150 105l55 55q45-20 90 0l55-55q80-25 35 70 35 55 15 125-35 105-150 105T100 300q-20-70 15-125z"/><circle cx="190" cy="245" r="13"/><circle cx="310" cy="245" r="13"/></g></svg>'],
+  ['ปลา','🐟','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><g fill="white" stroke="#111" stroke-width="12"><path d="M80 250Q190 105 360 205l70-65v220l-70-65Q190 395 80 250z"/><circle cx="325" cy="230" r="13"/></g></svg>'],
+  ['ผีเสื้อ','🦋','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><g fill="white" stroke="#111" stroke-width="12"><path d="M250 250Q155 90 80 130q-45 100 95 175Q35 290 90 400q100 20 160-105M250 250Q345 90 420 130q45 100-95 175 140-15 85 95-100 20-160-105M250 155v220" fill="none"/></g></svg>']
+ ]},
+ food:{name:'อาหาร 🍎',icon:'🍎',items:[
+  ['แอปเปิล','🍎','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><path d="M250 165Q130 105 85 230q-25 150 165 205 190-55 165-205-45-125-165-65z" fill="white" stroke="#111" stroke-width="12"/></svg>'],
+  ['แตงโม','🍉','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><path d="M70 180h360q-10 190-180 190T70 180z" fill="white" stroke="#111" stroke-width="12"/></svg>'],
+  ['ไอศกรีม','🍦','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><path d="M135 210q0-100 115-100t115 100H135zM140 210h220L250 420z" fill="white" stroke="#111" stroke-width="12"/></svg>']
+ ]},
+ vehicles:{name:'ยานพาหนะ 🚗',icon:'🚗',items:[
+  ['รถยนต์','🚗','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><path d="M90 300l45-105h230l45 105v90H90z" fill="white" stroke="#111" stroke-width="12"/><circle cx="155" cy="390" r="35" fill="white" stroke="#111" stroke-width="12"/><circle cx="345" cy="390" r="35" fill="white" stroke="#111" stroke-width="12"/></svg>'],
+  ['จรวด','🚀','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><path d="M250 60q100 80 100 220l-45 80h-110l-45-80Q150 140 250 60z" fill="white" stroke="#111" stroke-width="12"/><circle cx="250" cy="190" r="32" fill="white" stroke="#111" stroke-width="12"/></svg>'],
+  ['เครื่องบิน','✈️','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><path d="M70 245l150-20 80-120h55l-30 115 100 15q45 8 0 30l-100 15 30 115h-55l-80-120-150-20q-45-5 0-10z" fill="white" stroke="#111" stroke-width="12"/></svg>']
+ ]},
+ nature:{name:'ธรรมชาติ 🌈',icon:'🌈',items:[
+  ['ดอกไม้','🌸','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><circle cx="250" cy="220" r="45" fill="white" stroke="#111" stroke-width="12"/><circle cx="180" cy="175" r="55" fill="white" stroke="#111" stroke-width="12"/><circle cx="320" cy="175" r="55" fill="white" stroke="#111" stroke-width="12"/><path d="M250 255v180" fill="none" stroke="#111" stroke-width="12"/></svg>'],
+  ['ดวงอาทิตย์','☀️','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><circle cx="250" cy="250" r="90" fill="white" stroke="#111" stroke-width="12"/><path d="M250 55v70M250 375v70M55 250h70M375 250h70" stroke="#111" stroke-width="12"/></svg>'],
+  ['เมฆ','☁️','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><path d="M100 330q0-80 80-80 20-90 105-65 55 10 60 70 75-10 75 75 0 55-65 55H165q-65 0-65-55z" fill="white" stroke="#111" stroke-width="12"/></svg>']
+ ]},
+ fantasy:{name:'แฟนตาซี 🦖',icon:'🦖',items:[
+  ['ไดโนเสาร์','🦖','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><path d="M110 360q-25-115 55-175 60-45 145-5l55-75 65 55-75 55q15 65-25 110l45 55H280l-25-65-45 65z" fill="white" stroke="#111" stroke-width="12"/></svg>'],
+  ['จรวดอวกาศ','🌟','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500"><path d="M250 75q75 70 75 170v95H175v-95q0-100 75-170z" fill="white" stroke="#111" stroke-width="12"/><circle cx="250" cy="205" r="30" fill="white" stroke="#111" stroke-width="12"/></svg>']
+ ]}
 };
 window.wadfunColorLibraryData=data;
-let active='animals', pending=false;
-const grids=()=>({cg:document.querySelector('.categoriesGrid'),pg:document.querySelector('.pickerGrid')});
-const card=()=>{const {cg,pg}=grids();return cg?.closest('.pageCard')||pg?.closest('.pageCard')};
-const set=(el,p,v)=>{if(el)el.style.setProperty(p,v,'important')};
-function header(mode){const p=card();if(!p)return;const h=p.querySelector('.pageTitle h1');if(h)h.textContent=mode==='cat'?'🖍️ เลือกหมวดภาพระบายสี':'✨ เลือกรูปที่จะระบายสี';const s=p.querySelector('.wadfun-picker-step');if(s)s.innerHTML=mode==='cat'?'1️⃣ <span>เลือกหมวดที่อยากวาด</span>':'2️⃣ <span>เลือกรูปที่ชอบ</span>';const t=p.querySelector('.wadfun-picker-tip');if(t)t.textContent=mode==='cat'?'เลือกจากรูปใหญ่ ๆ ได้เลย 🎨 ไม่ต้องอ่านก็เลือกได้':'แตะรูปหนึ่งครั้ง แล้วไปเริ่มระบายสีได้เลย ✨';const pr=p.querySelector('.wadfun-picker-progress');if(pr)pr.innerHTML=mode==='cat'?'<i>1</i> จาก 2':'<i>2</i> จาก 2'}
-function ensureBack(){const {pg}=grids();if(!pg)return null;let b=document.getElementById('wadfunColorCategoryBack');if(!b){b=document.createElement('button');b.id='wadfunColorCategoryBack';b.type='button';b.className='back';b.textContent='← กลับเลือกหมวด';b.style.marginBottom='10px';b.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();showCategories()});pg.parentElement?.insertBefore(b,pg)}return b}
-function buildCategories(){const {cg}=grids();if(!cg)return false;cg.innerHTML=Object.entries(data).map(([id,c])=>`<button type="button" class="cat" data-cat="${id}"><div class="catImg">${c.icon}</div><b>${c.name}</b><small>${c.items.length} รูป</small></button>`).join('');return true}
-function buildTemplates(){const {pg}=grids(),c=data[active];if(!pg||!c)return false;pg.innerHTML=c.items.map((x,i)=>`<button type="button" class="template" data-index="${i}"><div class="templateImg">${x[1]}</div><b>${x[0]}</b></button>`).join('');pg.dataset.wadfunCategory=active;return true}
-function showCategories(){const {cg,pg}=grids();if(!cg||!pg)return false;set(card(),'display','block');set(cg,'display','grid');set(pg,'display','none');const b=document.getElementById('wadfunColorCategoryBack');set(b,'display','none');header('cat');return true}
-function showTemplates(){const {cg,pg}=grids();if(!cg||!pg)return false;set(card(),'display','block');set(cg,'display','none');set(pg,'display','grid');const b=ensureBack();set(b,'display','inline-block');header('tpl');return true}
-function resetPicker(){active='animals';pending=false;window.wadfunClearActiveColorTemplate?.();buildCategories();buildTemplates();showCategories()}
-function sizeCanvas(c){const r=c.parentElement?.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);if(r&&r.width>10&&r.height>10){c.style.width=r.width+'px';c.style.height=r.height+'px';c.width=Math.round(r.width*d);c.height=Math.round(r.height*d)}}
-function renderItem(item){const c=document.getElementById('colorCanvas');if(!c||!document.getElementById('color')?.classList.contains('active'))return false;const ctx=c.getContext('2d');if(!ctx)return false;sizeCanvas(c);const im=new Image();im.onload=()=>{ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';ctx.clearRect(0,0,c.width,c.height);ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);const pad=Math.min(c.width,c.height)*.1,s=Math.min((c.width-pad*2)/500,(c.height-pad*2)/500),w=500*s;ctx.drawImage(im,(c.width-w)/2,(c.height-w)/2,w,w);window.wadfunResetColorMask?.();window.wadfunColorTemplateChanged?.();window.wadfunColorHistoryReset?.()};im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(item[2]);return true}
-function chooseTemplate(i){const item=data[active]?.items[i];if(!item)return;pending=true;window.wadfunColorTemplatePending=true;window.wadfunActiveColorTemplate={category:active,name:item[0]};if(typeof window.show==='function')window.show('color');let n=0;const tick=()=>{if(renderItem(item)||n++>12){pending=false;window.wadfunColorTemplatePending=false;return}setTimeout(tick,70)};tick()}
-function wrapShow(){if(typeof window.show!=='function'||window.__wadfunColorLibraryShowV4)return;window.__wadfunColorLibraryShowV4=true;const old=window.show;window.show=function(mode){const r=old.apply(this,arguments);if(mode==='color'&&!pending&&!window.wadfunColorTemplatePending){setTimeout(resetPicker,0);setTimeout(resetPicker,120);setTimeout(resetPicker,350)}return r}}
-document.addEventListener('click',e=>{const cat=e.target.closest?.('.categoriesGrid .cat');if(cat){e.preventDefault();e.stopImmediatePropagation();active=cat.dataset.cat||'animals';buildTemplates();showTemplates();return}const back=e.target.closest?.('#wadfunColorCategoryBack');if(back){e.preventDefault();e.stopImmediatePropagation();showCategories();return}const tpl=e.target.closest?.('.pickerGrid .template');if(tpl){e.preventDefault();e.stopImmediatePropagation();chooseTemplate(Number(tpl.dataset.index));}},true);
-window.wadfunRenderActiveColorTemplate=()=>{const t=window.wadfunActiveColorTemplate;if(!t)return false;const item=data[t.category]?.items.find(x=>x[0]===t.name);return !!item&&renderItem(item)};
-window.wadfunClearActiveColorTemplate=()=>{window.wadfunActiveColorTemplate=null;window.wadfunColorTemplatePending=false};
+let active='animals',pending=false;
+const byId=id=>document.getElementById(id);
+const cg=()=>byId('categoriesGrid'),pg=()=>byId('pickerGrid');
+function page(id){return byId(id);}
+function setDisplay(el,v){if(el)el.style.setProperty('display',v,'important');}
+function updateCategoryHeader(){
+ const s=page('categories'),h=s?.querySelector('.pageTitle h1');
+ if(h)h.textContent='🖍️ เลือกหมวดภาพระบายสี';
+ const p=s?.querySelector('.pageTitle');
+ if(p){let pr=p.querySelector('.wadfun-picker-progress');if(pr)pr.remove();}
+}
+function updatePickerHeader(){
+ const s=page('picker'),h=s?.querySelector('#pickerTitle');
+ const c=data[active];
+ if(h)h.textContent=(c?.icon||'🖍️')+' '+(c?.name||'เลือกภาพ');
+ const sub=s?.querySelector('#pickerSub');
+ if(sub)sub.textContent='แตะรูปหนึ่งครั้ง แล้วไปเริ่มระบายสีได้เลย ✨';
+}
+function buildCategories(){
+ const g=cg();if(!g)return false;
+ g.innerHTML=Object.entries(data).map(([id,c],i)=>`<button type="button" class="cat" data-cat="${id}" aria-label="เลือกหมวด ${c.name}"><div class="catImg">${c.icon}</div><b>${c.name}</b><small>${c.items.length} รูป</small></button>`).join('');
+ return true;
+}
+function buildTemplates(){
+ const g=pg(),c=data[active];if(!g||!c)return false;
+ g.innerHTML=c.items.map((x,i)=>`<button type="button" class="template" data-index="${i}" aria-label="เลือกรูป ${x[0]}"><div class="templateImg">${x[2]}</div><b>${x[0]}</b></button>`).join('');
+ g.dataset.wadfunCategory=active;updatePickerHeader();return true;
+}
+function showCategories(){
+ const s=page('categories');if(!s)return false;
+ setDisplay(s,'block');setDisplay(page('picker'),'none');
+ setDisplay(cg(),'grid');setDisplay(pg(),'grid');
+ updateCategoryHeader();window.scrollTo(0,0);return true;
+}
+function showPicker(){
+ const s=page('picker');if(!s)return false;
+ setDisplay(page('categories'),'none');setDisplay(s,'block');
+ setDisplay(cg(),'grid');setDisplay(pg(),'grid');
+ updatePickerHeader();window.scrollTo(0,0);return true;
+}
+function renderItem(item){
+ const c=byId('colorCanvas');if(!c||!page('color')?.classList.contains('active'))return false;
+ const ctx=c.getContext('2d');if(!ctx)return false;
+ const r=c.parentElement?.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);
+ if(r&&r.width>10&&r.height>10){c.style.width=r.width+'px';c.style.height=r.height+'px';c.width=Math.round(r.width*d);c.height=Math.round(r.height*d)}
+ const im=new Image();im.onload=()=>{
+  ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';ctx.clearRect(0,0,c.width,c.height);ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
+  const pad=Math.min(c.width,c.height)*.08,s=Math.min((c.width-pad*2)/500,(c.height-pad*2)/500),w=500*s;
+  ctx.drawImage(im,(c.width-w)/2,(c.height-w)/2,w,w);
+  window.wadfunResetColorMask?.();window.wadfunColorTemplateChanged?.();window.wadfunColorHistoryReset?.();
+  window.wadfunEnsureColorLineOverlay?.();
+ };
+ im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(item[2]);return true;
+}
+function chooseTemplate(i){
+ const item=data[active]?.items[i];if(!item)return;
+ pending=true;window.wadfunColorTemplatePending=true;window.wadfunActiveColorTemplate={category:active,name:item[0]};
+ window.currentTemplate=item[1]+' '+item[0];window.currentName='🖍️ '+item[0];
+ if(typeof window.show==='function')window.show('color');
+ let n=0;const tick=()=>{if(renderItem(item)||n++>30){pending=false;window.wadfunColorTemplatePending=false;return}setTimeout(tick,70)};tick();
+}
+function clearActive(){window.wadfunActiveColorTemplate=null;window.wadfunColorTemplatePending=false;pending=false;}
+function resetPicker(){active='animals';clearActive();buildCategories();buildTemplates();showCategories();}
+function installHandlers(){
+ document.addEventListener('click',e=>{
+  const cat=e.target.closest?.('#categoriesGrid .cat');
+  if(cat){e.preventDefault();e.stopImmediatePropagation();active=cat.dataset.cat||'animals';clearActive();buildTemplates();showPicker();return;}
+  const back=e.target.closest?.('#wadfunColorCategoryBack');
+  if(back){e.preventDefault();e.stopImmediatePropagation();showCategories();return;}
+  const tpl=e.target.closest?.('#pickerGrid .template');
+  if(tpl){e.preventDefault();e.stopImmediatePropagation();chooseTemplate(Number(tpl.dataset.index));return;}
+ },true);
+}
+function addBack(){
+ const s=page('picker'),g=pg();if(!s||!g)return;
+ let b=byId('wadfunColorCategoryBack');if(!b){b=document.createElement('button');b.id='wadfunColorCategoryBack';b.type='button';b.className='back';b.textContent='← กลับเลือกหมวด';b.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();showCategories()},true);s.insertBefore(b,s.querySelector('.pageCard'));}
+}
+function wrapShow(){
+ if(typeof window.show!=='function'||window.__wadfunColorLibraryShowV5)return;
+ window.__wadfunColorLibraryShowV5=true;const old=window.show;
+ window.show=function(mode){
+  const r=old.apply(this,arguments);
+  if(mode==='categories'){clearActive();setTimeout(()=>{buildCategories();showCategories()},0);}
+  else if(mode==='picker'){setTimeout(()=>{buildTemplates();showPicker()},0);}
+  else if(mode==='color'&&window.wadfunActiveColorTemplate){setTimeout(()=>window.wadfunRenderActiveColorTemplate?.(),0);}
+  return r;
+ };
+}
+window.wadfunRenderActiveColorTemplate=()=>{const t=window.wadfunActiveColorTemplate,item=data[t?.category]?.items.find(x=>x[0]===t?.name);return !!item&&renderItem(item)};
+window.wadfunClearActiveColorTemplate=clearActive;
 window.wadfunColorLibraryResetPicker=resetPicker;
-function boot(){wrapShow();const {cg,pg}=grids();if(cg&&pg){buildCategories();buildTemplates();showCategories();return true}return false}
-const bootTimer=setInterval(()=>{if(boot())clearInterval(bootTimer)},100);document.addEventListener('DOMContentLoaded',boot,{once:true});window.addEventListener('pageshow',()=>{wrapShow();if(document.getElementById('color')?.classList.contains('active')&&!pending)resetPicker()});
+function boot(){
+ wrapShow();addBack();const ok=buildCategories()&&buildTemplates();if(ok){installHandlers();showCategories();return true}return false;
+}
+const timer=setInterval(()=>{if(boot())clearInterval(timer)},100);document.addEventListener('DOMContentLoaded',boot,{once:true});
+window.addEventListener('pageshow',()=>{wrapShow();addBack();if(page('categories')?.classList.contains('active')){buildCategories();showCategories()}else if(page('picker')?.classList.contains('active')){buildTemplates();showPicker()}});
 })();
