@@ -16,7 +16,7 @@ jobs:
           node --check color-library-fix.js
           node --check color-picker-reset-v2.js
           node --check color-picker-controller.js
-      - name: Check Color Library contract
+      - name: Check Color Library V6 contract
         run: |
           node <<'NODE'
           const fs=require('fs');
@@ -24,9 +24,22 @@ jobs:
           for (const key of ['animals','food','vehicles','nature','fantasy']) {
             if (!s.includes(`${key}:`)) throw new Error(`missing category: ${key}`);
           }
-          for (const token of ['wadfunColorLibraryData','wadfunRenderActiveColorTemplate','wadfunClearActiveColorTemplate','wadfunColorLibraryResetPicker','showPicker']) {
+          for (const token of ['wadfunColorLibraryData','renderCategories','renderPictures','showCategories','showPicker','choosePicture','wadfunRenderActiveColorTemplate']) {
             if (!s.includes(token)) throw new Error(`missing contract: ${token}`);
           }
-          if (!s.includes('__wadfunColorLibraryV5')) throw new Error('wrong library owner version');
-          console.log('Color Library V5 contract OK');
+          if (!s.includes('__wadfunColorLibraryV6')) throw new Error('wrong library owner version');
+          if (!s.includes('#categoriesGrid .cat')) throw new Error('category click route missing');
+          if (!s.includes('#pickerGrid .template')) throw new Error('picture click route missing');
+          console.log('Color Library V6 contract OK');
+          NODE
+      - name: Verify HTML picker targets exist
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const s=fs.readFileSync('index.html','utf8');
+          for (const id of ['categories','categoriesGrid','picker','pickerGrid','colorCanvas']) {
+            if (!s.includes(`id="${id}"`)) throw new Error(`missing HTML target: ${id}`);
+          }
+          if (!s.includes('color-library.js')) throw new Error('color-library.js is not loaded by index.html');
+          console.log('HTML picker targets OK');
           NODE
