@@ -31,8 +31,7 @@ window.show = id => {
 window.saveCanvas = () => null;
 window.finishCanvas = () => {};
 
-document.head.appendChild(document.createElement('script')).textContent = fs.readFileSync('color-picker-reset-v2.js', 'utf8');
-
+eval(fs.readFileSync('color-picker-reset-v2.js', 'utf8'));
 window.finishCanvas('colorCanvas', '🖍️', 'ทดสอบ');
 
 assert(document.getElementById('finish').classList.contains('active'), 'finish screen should become active');
