@@ -28,11 +28,11 @@ jobs:
           node --check tests/color-workspace-fix.test.js
           node --check tests/color-history-buttons.test.js
           node --check tests/color-start-new.test.js
-      - name: Check Color Engine V26 contract
+      - name: Check Color Engine V27 contract
         run: |
           node <<'NODE'
           const fs=require('fs'),s=fs.readFileSync('color-engine.js','utf8');
-          for(const token of ['Color Engine V26','paint','ink','line','mask','wadfunColorResetV25','wadfunColorFreshReset','undoColor','redoColor','destination-out','fill(x,y)','wireButtons']) if(!s.includes(token)) throw new Error(`missing V26 contract: ${token}`);
+          for(const token of ['Color Engine V27','paint','ink','line','mask','wadfunColorResetV25','wadfunColorFreshReset','undoColor','redoColor','destination-out','pc.save()','ic.save()','fill(x,y)','wireButtons']) if(!s.includes(token)) throw new Error(`missing V27 contract: ${token}`);
           NODE
       - name: Check workspace fix V7 contract
         run: |
