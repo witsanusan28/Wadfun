@@ -29,6 +29,7 @@ jobs:
           node --check color-engine-v24.js
           node --check color-line-lock.js
           node --check tests/color-library-navigation.test.js
+          node --check tests/color-workspace-fix.test.js
 
       - name: Check Color Engine V25 contract
         run: |
@@ -74,6 +75,9 @@ jobs:
       - name: Run real DOM Change Picture navigation test
         run: node tests/color-library-navigation.test.js
 
+      - name: Run workspace finish and mobile toolbar test
+        run: node tests/color-workspace-fix.test.js
+
       - name: Verify HTML picker targets exist
         run: |
           node <<'NODE'
@@ -83,5 +87,6 @@ jobs:
             if (!s.includes(`id=\"${id}\"`)) throw new Error(`missing HTML target: ${id}`);
           }
           if (!s.includes('color-library.js')) throw new Error('color-library.js is not loaded by index.html');
+          if (!s.includes('color-engine.js')) throw new Error('color-engine.js is not loaded by index.html');
           console.log('HTML picker targets OK');
           NODE
