@@ -45,6 +45,8 @@ jobs:
               s = s.replace('</body>', '<script src="picker-ui.js"></script></body>', 1)
           if '<script src="color-library.js"></script>' not in s:
               s = s.replace('</body>', '<script src="color-library.js"></script></body>', 1)
+          if '<script src="color-library-fix.js"></script>' not in s:
+              s = s.replace('</body>', '<script src="color-library-fix.js"></script></body>', 1)
           s = s.replace('🤏 สองนิ้วหุบ / ขยาย เพื่อซูม', '🔍 ใช้แถบซ้ายเพื่อซูม')
           s = s.replace('🤏 สองนิ้วหุบ / ขยาย เพื่อดูรายละเอียด', '🔍 ใช้แถบซ้ายเพื่อซูม')
           p.write_text(s, encoding='utf-8')
