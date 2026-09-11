@@ -1,0 +1,32 @@
+name: Wadfun Color Library Test
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  color-library-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check JavaScript syntax
+        run: |
+          node --check color-library.js
+          node --check color-library-fix.js
+          node --check color-picker-reset-v2.js
+          node --check color-picker-controller.js
+      - name: Check Color Library contract
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const s=fs.readFileSync('color-library.js','utf8');
+          for (const key of ['animals','food','vehicles','nature','fantasy']) {
+            if (!s.includes(`${key}:`)) throw new Error(`missing category: ${key}`);
+          }
+          for (const token of ['wadfunColorLibraryData','wadfunRenderActiveColorTemplate','wadfunClearActiveColorTemplate','wadfunColorLibraryResetPicker']) {
+            if (!s.includes(token)) throw new Error(`missing contract: ${token}`);
+          }
+          if (!s.includes('__wadfunColorLibraryV4')) throw new Error('wrong library owner version');
+          console.log('Color Library contract OK');
+          NODE
