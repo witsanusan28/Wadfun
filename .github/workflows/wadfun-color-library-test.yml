@@ -11,6 +11,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install DOM test dependency
+        run: npm install --no-save jsdom@24
+
       - name: Check JavaScript syntax
         run: |
           node --check color-library.js
@@ -18,6 +26,7 @@ jobs:
           node --check color-picker-reset-v2.js
           node --check color-picker-controller.js
           node --check color-engine-v24.js
+          node --check tests/color-library-navigation.test.js
 
       - name: Check Color Library V8 contract
         run: |
@@ -38,13 +47,16 @@ jobs:
           console.log('Color Library V8 contract OK');
           NODE
 
+      - name: Run real DOM Change Picture navigation test
+        run: node tests/color-library-navigation.test.js
+
       - name: Verify HTML picker targets exist
         run: |
           node <<'NODE'
           const fs=require('fs');
           const s=fs.readFileSync('index.html','utf8');
           for (const id of ['categories','categoriesGrid','picker','pickerGrid','colorCanvas','colorViewport']) {
-            if (!s.includes(`id="${id}"`)) throw new Error(`missing HTML target: ${id}`);
+            if (!s.includes(`id=\"${id}\"`)) throw new Error(`missing HTML target: ${id}`);
           }
           if (!s.includes('color-library.js')) throw new Error('color-library.js is not loaded by index.html');
           console.log('HTML picker targets OK');
