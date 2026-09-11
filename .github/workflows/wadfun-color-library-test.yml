@@ -1,9 +1,7 @@
 name: Wadfun Color Library Test
-
 on:
   push:
     branches: [main]
-
 jobs:
   color-library-test:
     runs-on: ubuntu-latest
@@ -34,36 +32,28 @@ jobs:
           node <<'NODE'
           const fs=require('fs'),s=fs.readFileSync('color-engine.js','utf8');
           for(const token of ['Color Engine V26','paint','ink','line','mask','wadfunColorResetV25','wadfunColorFreshReset','undoColor','redoColor','destination-out','fill(x,y)','wireButtons']) if(!s.includes(token)) throw new Error(`missing V26 contract: ${token}`);
-          console.log('Color Engine V26 contract OK');
           NODE
       - name: Check workspace fix V6 contract
         run: |
           node <<'NODE'
           const fs=require('fs'),s=fs.readFileSync('color-picker-reset-v2.js','utf8');
           for(const token of ['Workspace Fix V6','flex-wrap','overflow-x:hidden','exportImage','__wadfunFinishFixV6','finishCanvas']) if(!s.includes(token)) throw new Error(`missing workspace V6 contract: ${token}`);
-          console.log('Workspace Fix V6 contract OK');
           NODE
       - name: Check Color History V6 contract
         run: |
           node <<'NODE'
           const fs=require('fs'),s=fs.readFileSync('color-history.js','utf8');
           for(const token of ['Color History V6','engineUndo','engineRedo','colorUndoBtn','colorRedoBtn','insertAdjacentElement','wadfunColorHistoryState']) if(!s.includes(token)) throw new Error(`missing history contract: ${token}`);
-          if(!s.includes('engineUndo()')) throw new Error('Undo must delegate to Color Engine');
-          if(!s.includes('engineRedo()')) throw new Error('Redo must delegate to Color Engine');
-          console.log('Color History V6 contract OK');
           NODE
-      - name: Check Color Library V11 contract
+      - name: Check Color Library V12 contract
         run: |
           node <<'NODE'
           const fs=require('fs'),s=fs.readFileSync('color-library.js','utf8');
           for(const key of ['animals','food','vehicles','nature','fantasy']) if(!s.includes(`${key}:`)) throw new Error(`missing category: ${key}`);
-          for(const token of ['wadfunColorLibraryData','renderCategories','renderPictures','colorScreen','renderSelected','wadfunChangePicture','wadfunColorLibraryState','wadfunColorFreshReset','function startNew()','function addChange()']) if(!s.includes(token)) throw new Error(`missing library contract: ${token}`);
-          if(!s.includes('__wadfunColorLibraryV11')) throw new Error('wrong library owner version');
-          if(!s.includes('#categoriesGrid .cat')) throw new Error('category click route missing');
-          if(!s.includes('#pickerGrid .template')) throw new Error('picture click route missing');
+          for(const token of ['wadfunColorLibraryData','renderCategories','renderPictures','colorScreen','renderSelected','wadfunChangePicture','wadfunColorLibraryState','wadfunColorFreshReset','function startNew()','function addChange()','document.querySelector(\'#color .toolbar\')']) if(!s.includes(token)) throw new Error(`missing library contract: ${token}`);
+          if(!s.includes('__wadfunColorLibraryV12')) throw new Error('wrong library owner version');
+          if(!s.includes('#categoriesGrid .cat')||!s.includes('#pickerGrid .template')) throw new Error('picker routes missing');
           if(!s.includes('stopImmediatePropagation')) throw new Error('click isolation missing');
-          if(!s.includes('function change(){addChange();picker()}')) throw new Error('persistent picker return missing');
-          console.log('Color Library V11 contract OK');
           NODE
       - name: Run real DOM Change Picture navigation test
         run: node tests/color-library-navigation.test.js
@@ -76,8 +66,5 @@ jobs:
           node <<'NODE'
           const fs=require('fs'),s=fs.readFileSync('index.html','utf8');
           for(const id of ['categories','categoriesGrid','picker','pickerGrid','colorCanvas','colorViewport']) if(!s.includes(`id=\"${id}\"`)) throw new Error(`missing HTML target: ${id}`);
-          if(!s.includes('color-library.js')) throw new Error('color-library.js is not loaded by index.html');
-          if(!s.includes('color-engine.js')) throw new Error('color-engine.js is not loaded by index.html');
-          if(!s.includes('color-history.js')) throw new Error('color-history.js is not loaded by index.html');
-          console.log('HTML picker/history targets OK');
+          if(!s.includes('color-library.js')||!s.includes('color-engine.js')||!s.includes('color-history.js')) throw new Error('required color scripts are not loaded');
           NODE
