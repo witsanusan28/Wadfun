@@ -27,33 +27,48 @@ jobs:
           node --check color-picker-controller.js
           node --check color-engine.js
           node --check color-engine-v24.js
+          node --check color-history.js
           node --check color-line-lock.js
           node --check tests/color-library-navigation.test.js
           node --check tests/color-workspace-fix.test.js
+          node --check tests/color-history-buttons.test.js
 
-      - name: Check Color Engine V25 contract
+      - name: Check Color Engine V26 contract
         run: |
           node <<'NODE'
           const fs=require('fs');
           const s=fs.readFileSync('color-engine.js','utf8');
-          for (const token of ['Color Engine V25','paint','ink','line','mask','wadfunColorResetV25','undoColor','destination-out','fill(x,y)']) {
-            if (!s.includes(token)) throw new Error(`missing V25 contract: ${token}`);
+          for (const token of ['Color Engine V26','paint','ink','line','mask','wadfunColorResetV25','wadfunColorFreshReset','undoColor','redoColor','destination-out','fill(x,y)','wireButtons']) {
+            if (!s.includes(token)) throw new Error(`missing V26 contract: ${token}`);
           }
-          console.log('Color Engine V25 contract OK');
+          console.log('Color Engine V26 contract OK');
           NODE
 
-      - name: Check workspace fix contract
+      - name: Check workspace fix V6 contract
         run: |
           node <<'NODE'
           const fs=require('fs');
           const s=fs.readFileSync('color-picker-reset-v2.js','utf8');
-          for (const token of ['Workspace Fix V5','flex-wrap','overflow-x:hidden','exportImage','__wadfunFinishFixV5','finishCanvas']) {
-            if (!s.includes(token)) throw new Error(`missing workspace fix contract: ${token}`);
+          for (const token of ['Workspace Fix V6','flex-wrap','overflow-x:hidden','exportImage','__wadfunFinishFixV6','finishCanvas']) {
+            if (!s.includes(token)) throw new Error(`missing workspace fix V6 contract: ${token}`);
           }
-          console.log('Workspace Fix V5 contract OK');
+          console.log('Workspace Fix V6 contract OK');
           NODE
 
-      - name: Check Color Library V8 contract
+      - name: Check Color History V5 contract
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const s=fs.readFileSync('color-history.js','utf8');
+          for (const token of ['Color History V5','engineUndo','engineRedo','colorUndoBtn','colorRedoBtn','insertAdjacentElement','wadfunColorHistoryState']) {
+            if (!s.includes(token)) throw new Error(`missing history contract: ${token}`);
+          }
+          if (!s.includes('engineUndo()')) throw new Error('Undo must delegate to Color Engine');
+          if (!s.includes('engineRedo()')) throw new Error('Redo must delegate to Color Engine');
+          console.log('Color History V5 contract OK');
+          NODE
+
+      - name: Check Color Library V10 contract
         run: |
           node <<'NODE'
           const fs=require('fs');
@@ -61,24 +76,27 @@ jobs:
           for (const key of ['animals','food','vehicles','nature','fantasy']) {
             if (!s.includes(`${key}:`)) throw new Error(`missing category: ${key}`);
           }
-          for (const token of ['wadfunColorLibraryData','renderCategories','renderPictures','hideAllScreens','showOnly','showCategories','showPicker','choosePicture','directColorScreen','renderSelected','wadfunChangePicture','wadfunColorLibraryState']) {
+          for (const token of ['wadfunColorLibraryData','renderCategories','renderPictures','colorScreen','renderSelected','wadfunChangePicture','wadfunColorLibraryState','wadfunColorFreshReset','function startNew()']) {
             if (!s.includes(token)) throw new Error(`missing contract: ${token}`);
           }
-          if (!s.includes('__wadfunColorLibraryV8')) throw new Error('wrong library owner version');
+          if (!s.includes('__wadfunColorLibraryV10')) throw new Error('wrong library owner version');
           if (!s.includes('#categoriesGrid .cat')) throw new Error('category click route missing');
           if (!s.includes('#pickerGrid .template')) throw new Error('picture click route missing');
           if (!s.includes('stopImmediatePropagation')) throw new Error('click isolation missing');
-          if (!s.includes("changePicture(){showPicker()}")) throw new Error('persistent picker return missing');
-          console.log('Color Library V8 contract OK');
+          if (!s.includes('function change(){picker()}')) throw new Error('persistent picker return missing');
+          console.log('Color Library V10 contract OK');
           NODE
 
       - name: Run real DOM Change Picture navigation test
         run: node tests/color-library-navigation.test.js
 
+      - name: Run Color Undo/Redo button test
+        run: node tests/color-history-buttons.test.js
+
       - name: Run workspace finish and mobile toolbar test
         run: node tests/color-workspace-fix.test.js
 
-      - name: Verify HTML picker targets exist
+      - name: Verify HTML picker and history targets exist
         run: |
           node <<'NODE'
           const fs=require('fs');
@@ -88,5 +106,6 @@ jobs:
           }
           if (!s.includes('color-library.js')) throw new Error('color-library.js is not loaded by index.html');
           if (!s.includes('color-engine.js')) throw new Error('color-engine.js is not loaded by index.html');
-          console.log('HTML picker targets OK');
+          if (!s.includes('color-history.js')) throw new Error('color-history.js is not loaded by index.html');
+          console.log('HTML picker/history targets OK');
           NODE
