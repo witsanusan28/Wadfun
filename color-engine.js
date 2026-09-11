@@ -1,11 +1,23 @@
-/* Wadfun Color Engine V27 — eraser clears both filled color and freehand ink */
+/* Wadfun Color Engine V28 — robust tool detection + eraser clears filled color and ink */
 (function(){
 'use strict';
 const $=id=>document.getElementById(id),MAX_DPR=1.5,MIN_ALPHA=18,LINE_LUMA=205;
 const rgb=h=>{h=(h||'#e53935').replace('#','');if(h.length===3)h=h.split('').map(x=>x+x).join('');return[parseInt(h.slice(0,2),16)||0,parseInt(h.slice(2,4),16)||0,parseInt(h.slice(4,6),16)||0]};
 const lum=(r,g,b)=>.299*r+.587*g+.114*b;
 function color(){const s=window.wadfunSelectedColor;return /^#[0-9a-f]{6}$/i.test(s||'')?s:'#e53935'}
-function mode(){if($('colorPenBtn')?.classList.contains('on'))return'pen';if($('colorEraseBtn')?.classList.contains('on'))return'eraser';return'bucket'}
+function mode(){
+  if($('colorEraseBtn')?.classList.contains('on')||$('colorEraserBtn')?.classList.contains('on'))return'eraser';
+  if($('colorPenBtn')?.classList.contains('on'))return'pen';
+  const root=$('color')?.querySelector('.toolbar');
+  const on=[...(root?.querySelectorAll('button.on')||[])];
+  for(const b of on){
+    const t=((b.textContent||'')+' '+(b.id||'')).toLowerCase();
+    if(/ยางลบ|eraser|erase/.test(t))return'eraser';
+    if(/ระบาย|pen|brush|ดินสอ|ปากกา/.test(t))return'pen';
+    if(/ถังสี|เทสี|bucket|fill/.test(t))return'bucket';
+  }
+  return'bucket'
+}
 let c,v,paint,ink,line,pc,ic,mask,w=0,h=0,ready=false,undo=[],redo=[],base=null;
 function pt(x,y){const r=c.getBoundingClientRect();return{x:Math.max(0,Math.min(c.width-1,(x-r.left)*c.width/r.width)),y:Math.max(0,Math.min(c.height-1,(y-r.top)*c.height/r.height))}}
 function render(){if(!ready)return;const x=c.getContext('2d');x.setTransform(1,0,0,1,0,0);x.globalCompositeOperation='source-over';x.globalAlpha=1;x.clearRect(0,0,w,h);x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(paint,0,0);x.drawImage(ink,0,0);x.drawImage(line,0,0)}
@@ -25,7 +37,7 @@ function fill(x,y){x=Math.max(0,Math.min(w-1,x|0));y=Math.max(0,Math.min(h-1,y|0
 function syncButtons(){window.wadfunColorUndo=doUndo;window.wadfunColorRedo=doRedo;window.undoColor=doUndo;window.redoColor=doRedo;window.wadfunColorHistoryState=()=>({undo:undo.length,redo:redo.length});const root=$('color')?.querySelector('.toolbar');if(!root)return;for(const b of root.querySelectorAll('button')){const t=(b.textContent||'').toLowerCase();if(t.includes('undo')||t.includes('ย้อน'))b.disabled=!undo.length;if(t.includes('redo')||t.includes('ทำซ้ำ'))b.disabled=!redo.length}}
 function wireButtons(){const root=$('color')?.querySelector('.toolbar');if(!root||root.dataset.v27buttons)return;root.dataset.v27buttons='1';const buttons=[...root.querySelectorAll('button')];let undoBtn=buttons.find(b=>/undo|ย้อน/i.test(b.textContent||''));let redoBtn=buttons.find(b=>/redo|ทำซ้ำ/i.test(b.textContent||''));if(!undoBtn){undoBtn=document.createElement('button');undoBtn.className='tb';undoBtn.type='button';undoBtn.id='colorUndoBtn';undoBtn.innerHTML='<i>↩️</i><span>ย้อนกลับ</span>';root.appendChild(undoBtn)}if(!redoBtn){redoBtn=document.createElement('button');redoBtn.className='tb';redoBtn.type='button';redoBtn.id='colorRedoBtn';redoBtn.innerHTML='<i>↪️</i><span>ทำซ้ำ</span>';root.appendChild(redoBtn)}undoBtn.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();doUndo()},true);redoBtn.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();doRedo()},true);syncButtons()}
 function block(e){e.preventDefault();e.stopImmediatePropagation()}
-function install(){if(!c||!v||c.dataset.v27)return;c.dataset.v27='1';fresh();window.wadfunColorTemplateReady=captureTemplate;window.wadfunColorFreshReset=fresh;window.wadfunColorResizeToViewport=sync;window.wadfunColorResetV24=fresh;window.wadfunColorResetV25=fresh;window.wadfunEnsureColorLineOverlay=render;let touches=new Map(),last=null,mouse=false;
+function install(){if(!c||!v||c.dataset.v28)return;c.dataset.v28='1';fresh();window.wadfunColorTemplateReady=captureTemplate;window.wadfunColorFreshReset=fresh;window.wadfunColorResizeToViewport=sync;window.wadfunColorResetV24=fresh;window.wadfunColorResetV25=fresh;window.wadfunEnsureColorLineOverlay=render;let touches=new Map(),last=null,mouse=false;
 function touchStart(e){if(mode()==='bucket'){if(touches.size)return;touches.set(e.changedTouches[0].identifier,true);const t=e.changedTouches[0],p=pt(t.clientX,t.clientY);pushHistory();if(!fill(p.x,p.y))undo.pop();e.preventDefault();e.stopImmediatePropagation();return}for(const t of e.changedTouches)touches.set(t.identifier,true);if(touches.size>1){last=null;return}const t=e.changedTouches[0];pushHistory();last=pt(t.clientX,t.clientY);e.preventDefault();e.stopImmediatePropagation()}
 function touchMove(e){if(touches.size!==1||!last)return;const t=e.touches[0],p=pt(t.clientX,t.clientY);draw(last,p,mode());last=p;e.preventDefault();e.stopImmediatePropagation()}
 function touchEnd(e){for(const t of e.changedTouches)touches.delete(t.identifier);if(!touches.size)last=null;e.preventDefault();e.stopImmediatePropagation()}
