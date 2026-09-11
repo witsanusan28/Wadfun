@@ -4,6 +4,11 @@
   function drawCircleTemplate(){
     const c=document.getElementById('colorCanvas');
     if(!c || !document.getElementById('color')?.classList.contains('active')) return;
+    // When a library template is selected, it owns the canvas so the test circle never overwrites it.
+    if(window.wadfunActiveColorTemplate && typeof window.wadfunRenderActiveColorTemplate==='function'){
+      if(window.wadfunColorTemplatePending || window.wadfunActiveColorTemplate) window.wadfunRenderActiveColorTemplate();
+      return;
+    }
     const parent=c.parentElement;
     if(parent){
       const r=parent.getBoundingClientRect(),d=Math.min(window.devicePixelRatio||1,2);
@@ -39,9 +44,7 @@
     return text.includes('เริ่มใหม่')||text.includes('เริ่มต้นใหม่')||text.includes('เริ่มใหม่อีกครั้ง');
   }
   function redrawAfterRestart(){
-    // Redraw immediately first so the old sample image can never flash.
     drawCircleTemplate();
-    // Keep a couple of delayed redraws for any layout/canvas resize caused by the original UI.
     [60,180,400].forEach(ms=>setTimeout(drawCircleTemplate,ms));
   }
   function install(){
@@ -59,8 +62,6 @@
     };
     wrap('show');
     wrap('initColor');
-
-    // Color reset is handled synchronously to prevent the old template from flashing.
     const originalReset=window.resetColor;
     if(typeof originalReset==='function'){
       window.resetColor=function(){
@@ -71,16 +72,13 @@
         return originalReset.apply(this,arguments);
       };
     }
-
     document.addEventListener('click',function(e){
       if(isRestartTarget(e.target))redrawAfterRestart();
     },true);
-
     const color=document.getElementById('color');
     if(color)new MutationObserver(()=>{
       if(color.classList.contains('active'))drawCircleTemplate();
     }).observe(color,{attributes:true,attributeFilter:['class']});
-
     window.addEventListener('resize',()=>{
       if(document.getElementById('color')?.classList.contains('active'))setTimeout(drawCircleTemplate,80);
     },{passive:true});
