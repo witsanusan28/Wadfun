@@ -28,6 +28,7 @@
     x.lineWidth=Math.max(6,Math.min(c.width,c.height)*0.012);
     x.lineCap='round';
     x.stroke();
+    window.wadfunResetColorMask?.();
     window.wadfunColorTemplateChanged?.();
   }
   function isRestartTarget(el){
@@ -38,9 +39,10 @@
     return text.includes('เริ่มใหม่')||text.includes('เริ่มต้นใหม่')||text.includes('เริ่มใหม่อีกครั้ง');
   }
   function redrawAfterRestart(){
-    // The original restart handler may rebuild the Color canvas asynchronously.
-    // Redraw after it finishes so the test template is exactly the initial state.
-    [0,60,180,400,800].forEach(ms=>setTimeout(drawCircleTemplate,ms));
+    // Redraw immediately first so the old sample image can never flash.
+    drawCircleTemplate();
+    // Keep a couple of delayed redraws for any layout/canvas resize caused by the original UI.
+    [60,180,400].forEach(ms=>setTimeout(drawCircleTemplate,ms));
   }
   function install(){
     if(window.__wadfunCircleTemplateInstalled)return;
@@ -58,8 +60,18 @@
     wrap('show');
     wrap('initColor');
 
-    // Keep the existing restart behavior, but make its final Color canvas
-    // return to the same simple circle template instead of the old sample art.
+    // Color reset is handled synchronously to prevent the old template from flashing.
+    const originalReset=window.resetColor;
+    if(typeof originalReset==='function'){
+      window.resetColor=function(){
+        if(document.getElementById('color')?.classList.contains('active')){
+          redrawAfterRestart();
+          return;
+        }
+        return originalReset.apply(this,arguments);
+      };
+    }
+
     document.addEventListener('click',function(e){
       if(isRestartTarget(e.target))redrawAfterRestart();
     },true);
