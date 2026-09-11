@@ -4,9 +4,11 @@
   function drawCircleTemplate(){
     const c=document.getElementById('colorCanvas');
     if(!c || !document.getElementById('color')?.classList.contains('active')) return;
-    // When a library template is selected, it owns the canvas so the test circle never overwrites it.
-    if(window.wadfunActiveColorTemplate && typeof window.wadfunRenderActiveColorTemplate==='function'){
-      if(window.wadfunColorTemplatePending || window.wadfunActiveColorTemplate) window.wadfunRenderActiveColorTemplate();
+    // The real coloring library now owns Color mode. Do not let the old test circle
+    // appear during the short handoff before the selected template is ready.
+    if(!window.wadfunActiveColorTemplate) return;
+    if(typeof window.wadfunRenderActiveColorTemplate==='function'){
+      window.wadfunRenderActiveColorTemplate();
       return;
     }
     const parent=c.parentElement;
