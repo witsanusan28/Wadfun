@@ -27,17 +27,18 @@ jobs:
           node --check tests/color-library-navigation.test.js
           node --check tests/color-workspace-fix.test.js
           node --check tests/color-history-buttons.test.js
+          node --check tests/color-start-new.test.js
       - name: Check Color Engine V26 contract
         run: |
           node <<'NODE'
           const fs=require('fs'),s=fs.readFileSync('color-engine.js','utf8');
           for(const token of ['Color Engine V26','paint','ink','line','mask','wadfunColorResetV25','wadfunColorFreshReset','undoColor','redoColor','destination-out','fill(x,y)','wireButtons']) if(!s.includes(token)) throw new Error(`missing V26 contract: ${token}`);
           NODE
-      - name: Check workspace fix V6 contract
+      - name: Check workspace fix V7 contract
         run: |
           node <<'NODE'
           const fs=require('fs'),s=fs.readFileSync('color-picker-reset-v2.js','utf8');
-          for(const token of ['Workspace Fix V6','flex-wrap','overflow-x:hidden','exportImage','__wadfunFinishFixV6','finishCanvas']) if(!s.includes(token)) throw new Error(`missing workspace V6 contract: ${token}`);
+          for(const token of ['Workspace Fix V7','flex-wrap','overflow-x:hidden','exportImage','__wadfunFinishFixV7','finishCanvas','startNewSafe','toolState','restoreToolState','current imageId']) if(!s.includes(token)) throw new Error(`missing workspace V7 contract: ${token}`);
           NODE
       - name: Check Color History V6 contract
         run: |
@@ -59,6 +60,8 @@ jobs:
         run: node tests/color-library-navigation.test.js
       - name: Run Color Undo/Redo button test
         run: node tests/color-history-buttons.test.js
+      - name: Run Start New state isolation test
+        run: node tests/color-start-new.test.js
       - name: Run workspace finish and mobile toolbar test
         run: node tests/color-workspace-fix.test.js
       - name: Verify HTML picker and history targets exist
