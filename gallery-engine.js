@@ -1,8 +1,8 @@
-/* Wadfun Gallery Engine V9 — reliable save hook for Draw + Color */
+/* Wadfun Gallery Engine V10 — reliable save hook for Draw + Color finish */
 (function(){
 'use strict';
 const STORAGE_SRC='wadfun-storage.js';
-let editingId=null,editingMode=null,storagePromise=null,finishWrapped=false;
+let editingId=null,editingMode=null,storagePromise=null,finishWrapped=false,colorFinishInstalled=false;
 function loadStorage(){
   if(window.wadfunStorage)return Promise.resolve(window.wadfunStorage);
   if(storagePromise)return storagePromise;
@@ -35,7 +35,7 @@ async function saveCurrentArtwork(id){
   const mode=activeScreen==='color'||id==='colorCanvas'?'color':'draw';
   const existing=editingId?await get(editingId):null;
   const imageData=c.toDataURL('image/png');
-  const record={id:existing?.id,name:'ผลงานของฉัน',category:window.wadfunActiveColorTemplate?.category||'',mode,imageData,thumbnail:imageData,createdAt:existing?.createdAt||Date.now()};
+  const record={id:existing?.id,name:'ผลงานของฉัน',category:mode==='color'?(window.wadfunActiveColorTemplate?.category||''):'',mode,imageData,thumbnail:imageData,createdAt:existing?.createdAt||Date.now()};
   const saved=await window.wadfunStorage.saveArtwork(record);
   editingId=null;editingMode=null;
   console.log('[Wadfun] artwork saved',saved?.id,mode);
@@ -55,9 +55,24 @@ function installFinishHook(){
   };
   window.finishCanvas=wrapped;finishWrapped=true;console.log('[Wadfun] finishCanvas save hook installed');return true;
 }
+function installColorFinishButton(){
+  if(colorFinishInstalled)return true;
+  const root=document.getElementById('color');
+  if(!root)return false;
+  const buttons=[...root.querySelectorAll('button')];
+  const b=buttons.find(x=>{const t=(x.textContent||'').replace(/\s+/g,' ').trim().toLowerCase();const id=(x.id||'').toLowerCase();return /เสร็จ|finish|บันทึกผลงาน/.test(t)||/finish|colorfinish/.test(id)});
+  if(!b)return false;
+  b.addEventListener('click',async e=>{
+    e.preventDefault();e.stopImmediatePropagation();
+    try{await handleFinish('colorCanvas')}catch(err){console.error('[Wadfun] color finish save failed',err);alert('บันทึกผลงานไม่สำเร็จ ลองอีกครั้งนะ')}
+  },true);
+  colorFinishInstalled=true;
+  console.log('[Wadfun] color finish button save hook installed');
+  return true;
+}
 function watchFinishHook(){
-  if(installFinishHook())return;
-  let n=0;const t=setInterval(()=>{n++;if(installFinishHook()||n>100)clearInterval(t)},100);
+  if(installFinishHook()&&installColorFinishButton())return;
+  let n=0;const t=setInterval(()=>{n++;const a=installFinishHook(),b=installColorFinishButton();if((a&&b)||n>150)clearInterval(t)},100);
 }
 async function deleteWork(id){const w=await get(id);if(!w)return;if(!confirm('ลบผลงานนี้ใช่ไหม?'))return;await window.wadfunStorage.deleteArtwork(id);await render()}
 const originalGallery=window.gallery;window.gallery=async function(){try{await loadStorage();await migrateLegacy();await render()}catch(e){console.error('[Wadfun] gallery failed',e);if(typeof originalGallery==='function')originalGallery()}};
