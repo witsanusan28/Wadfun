@@ -68,7 +68,7 @@ jobs:
           console.log('Color History V5 contract OK');
           NODE
 
-      - name: Check Color Library V10 contract
+      - name: Check Color Library V11 contract
         run: |
           node <<'NODE'
           const fs=require('fs');
@@ -76,15 +76,15 @@ jobs:
           for (const key of ['animals','food','vehicles','nature','fantasy']) {
             if (!s.includes(`${key}:`)) throw new Error(`missing category: ${key}`);
           }
-          for (const token of ['wadfunColorLibraryData','renderCategories','renderPictures','colorScreen','renderSelected','wadfunChangePicture','wadfunColorLibraryState','wadfunColorFreshReset','function startNew()']) {
+          for (const token of ['wadfunColorLibraryData','renderCategories','renderPictures','colorScreen','renderSelected','wadfunChangePicture','wadfunColorLibraryState','wadfunColorFreshReset','function startNew()','function addChange()']) {
             if (!s.includes(token)) throw new Error(`missing contract: ${token}`);
           }
-          if (!s.includes('__wadfunColorLibraryV10')) throw new Error('wrong library owner version');
+          if (!s.includes('__wadfunColorLibraryV11')) throw new Error('wrong library owner version');
           if (!s.includes('#categoriesGrid .cat')) throw new Error('category click route missing');
           if (!s.includes('#pickerGrid .template')) throw new Error('picture click route missing');
           if (!s.includes('stopImmediatePropagation')) throw new Error('click isolation missing');
-          if (!s.includes('function change(){picker()}')) throw new Error('persistent picker return missing');
-          console.log('Color Library V10 contract OK');
+          if (!s.includes('function change(){addChange();picker()}')) throw new Error('persistent picker return missing');
+          console.log('Color Library V11 contract OK');
           NODE
 
       - name: Run real DOM Change Picture navigation test
