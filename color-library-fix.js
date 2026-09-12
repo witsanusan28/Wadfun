@@ -22,7 +22,6 @@ function currentKey(){
   const name=item?.[0]||window.wadfunActiveColorTemplate?.name||'';
   return {cat,idx,name,key:`${cat}:${idx}:${name}`};
 }
-
 async function findSaved(){
   try{
     const s=window.wadfunStorage;
@@ -39,7 +38,6 @@ async function findSaved(){
   }catch(e){console.error('[Wadfun] find saved color failed',e);return null}
 }
 function loadImage(src){return new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=reject;im.src=src})}
-
 async function makePaint(saved){
   const c=document.getElementById('colorCanvas');
   const {cat,idx}=currentKey();
@@ -47,71 +45,33 @@ async function makePaint(saved){
   if(!c?.width||!c?.height||!saved?.imageData||!item)return null;
   const out=document.createElement('canvas');out.width=c.width;out.height=c.height;
   const ox=out.getContext('2d',{willReadFrequently:true});
-  const img=await loadImage(saved.imageData);
-  ox.drawImage(img,0,0,out.width,out.height);
-
+  const img=await loadImage(saved.imageData);ox.drawImage(img,0,0,out.width,out.height);
   const line=document.createElement('canvas');line.width=c.width;line.height=c.height;
   const lx=line.getContext('2d',{willReadFrequently:true});
   const lineImg=await loadImage('data:image/svg+xml;charset=utf-8,'+encodeURIComponent(item[2]));
-  const pad=Math.min(line.width,line.height)*.08;
-  const scale=Math.min((line.width-pad*2)/500,(line.height-pad*2)/500);
-  const size=500*scale;
+  const pad=Math.min(line.width,line.height)*.08,scale=Math.min((line.width-pad*2)/500,(line.height-pad*2)/500),size=500*scale;
   lx.drawImage(lineImg,(line.width-size)/2,(line.height-size)/2,size,size);
-
-  const od=ox.getImageData(0,0,out.width,out.height);
-  const ld=lx.getImageData(0,0,line.width,line.height);
+  const od=ox.getImageData(0,0,out.width,out.height),ld=lx.getImageData(0,0,line.width,line.height);
   for(let i=0;i<od.data.length;i+=4){
     const lr=ld.data[i],lg=ld.data[i+1],lb=ld.data[i+2],la=ld.data[i+3];
     const white=od.data[i]>248&&od.data[i+1]>248&&od.data[i+2]>248;
     if(white)od.data[i+3]=0;
     if(la>=18&&(.299*lr+.587*lg+.114*lb)<205)od.data[i+3]=0;
   }
-  ox.putImageData(od,0,0);
-  return out.toDataURL('image/png');
+  ox.putImageData(od,0,0);return out.toDataURL('image/png');
 }
-
-function nativeRestore(){return window.wadfunColorRestoreState}
-async function applySavedVisual(saved){
-  try{
-    const restore=nativeRestore();
-    if(typeof restore!=='function'||restore.__wadfunColorV13Wrapped)return false;
-    const paint=await makePaint(saved);
-    if(!paint)return false;
-    restore({paint,ink:''},()=>{});
-    return true;
-  }catch(e){console.error('[Wadfun] V13 visual resume failed',e);return false}
-}
-
 function install(){
-  const restore=window.wadfunColorRestoreState;
-  if(typeof restore!=='function')return false;
-  if(restore.__wadfunColorV13Wrapped)return true;
+  const original=window.wadfunColorRestoreState;
+  if(typeof original!=='function'||original.__wadfunColorV13Wrapped)return false;
   const wrapped=function(state,done){
-    let ended=false;
-    const finish=()=>{if(ended)return;ended=true;if(done)done()};
+    let ended=false;const finish=()=>{if(ended)return;ended=true;if(done)done()};
+    const apply=async(saved)=>{try{const paint=await makePaint(saved);if(paint)original({paint,ink:''},()=>{});return !!paint}catch(e){console.error('[Wadfun] V13 visual resume failed',e);return false}};
     (async()=>{
       const saved=await findSaved();
       if(!saved){finish();return}
-      /* Prefer the exact saved layer state when it is present. */
-      try{
-        if(state?.paint||state?.ink){
-          const p=state.paint||'';
-          const i=state.ink||'';
-          restore({paint:p,ink:i},async()=>{
-            await applySavedVisual(saved);
-            setTimeout(()=>applySavedVisual(saved),250);
-            setTimeout(()=>applySavedVisual(saved),900);
-            setTimeout(()=>applySavedVisual(saved),1800);
-            finish();
-          });
-          return;
-        }
-      }catch(e){console.error('[Wadfun] exact color restore failed',e)}
-      await applySavedVisual(saved);
-      setTimeout(()=>applySavedVisual(saved),250);
-      setTimeout(()=>applySavedVisual(saved),900);
-      setTimeout(()=>applySavedVisual(saved),1800);
-      finish();
+      let exact=false;
+      try{if(state?.paint||state?.ink){original({paint:state.paint||'',ink:state.ink||''},async()=>{exact=true;await apply(saved);setTimeout(()=>apply(saved),250);setTimeout(()=>apply(saved),900);setTimeout(()=>apply(saved),1800);finish()});return}}catch(e){console.error('[Wadfun] exact color restore failed',e)}
+      await apply(saved);setTimeout(()=>apply(saved),250);setTimeout(()=>apply(saved),900);setTimeout(()=>apply(saved),1800);finish();
     })().catch(e=>{console.error('[Wadfun] V13 resume failed',e);finish()});
     return true;
   };
@@ -119,7 +79,5 @@ function install(){
   window.wadfunColorRestoreState=wrapped;
   return true;
 }
-let n=0;
-const timer=setInterval(()=>{if(install()||++n>180)clearInterval(timer)},100);
-install();
+let n=0;const timer=setInterval(()=>{if(install()||++n>180)clearInterval(timer)},100);install();
 })();
