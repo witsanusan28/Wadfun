@@ -1,4 +1,4 @@
-/* Wadfun Gallery Engine V23 — snapshot color before navigation */
+/* Wadfun Gallery Engine V24 — color saves isolated by template */
 (function(){
 'use strict';
 const S='wadfun-storage.js';let sp=null,editingId=null,hookedFinish=false,hookedGallery=false,autoObserver=null,hookedShow=false,hookedColorExit=false;
@@ -9,9 +9,16 @@ const image=w=>w?.imageData||w?.img||'';
 const esc=s=>String(s??'').replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[m]));
 function colorKey(){const st=window.wadfunColorLibraryState||{},cat=st.category||window.wadfunActiveColorTemplate?.category||'',idx=Number.isInteger(st.index)?st.index:'',name=window.wadfunActiveColorTemplate?.name||window.currentName||'';return cat+':'+idx+':'+name}
 function captureColorSnapshot(){try{const c=canvas('color');if(!c||!c.toDataURL||!window.wadfunColorGetState)return null;const imageData=c.toDataURL('image/png');const editorState=window.wadfunColorGetState();if(!imageData||imageData.length<100)return null;return {imageData,editorState,templateKey:colorKey()}}catch(e){console.error('[Wadfun] color snapshot failed',e);return null}}
-async function save(mode,snapshot){await load();const m=mode==='color'||active()==='color'?'color':'draw',c=canvas(m),snap=m==='color'&&snapshot?snapshot:null;if(!c||!c.toDataURL)throw Error('canvas not found');const data=snap?.imageData||c.toDataURL('image/png');if(!data||data.length<100)throw Error('empty canvas');let old=editingId?await window.wadfunStorage.getArtwork(editingId):null;const key=m==='color'?(snap?.templateKey||colorKey()):'';if(!old&&m==='color'&&key!==':'){const all=await window.wadfunStorage.getAllArtworks();old=all.find(x=>x.mode==='color'&&x.templateKey===key)||null}
+async function save(mode,snapshot){await load();const m=mode==='color'||active()==='color'?'color':'draw',c=canvas(m),snap=m==='color'&&snapshot?snapshot:null;if(!c||!c.toDataURL)throw Error('canvas not found');const data=snap?.imageData||c.toDataURL('image/png');if(!data||data.length<100)throw Error('empty canvas');
+let old=null;const key=m==='color'?(snap?.templateKey||colorKey()):'';
+if(m==='color'){
+  if(key&&key!==':'){
+    const all=await window.wadfunStorage.getAllArtworks();
+    old=all.find(x=>x.mode==='color'&&x.templateKey===key)||null;
+  }
+}else if(editingId){old=await window.wadfunStorage.getArtwork(editingId)}
 const rec={id:old?.id,name:m==='color'?(window.currentName||'ผลงานระบายสี'):'ผลงานวาดของฉัน',category:m==='color'?(window.wadfunActiveColorTemplate?.category||window.wadfunColorLibraryState?.category||''):'',mode:m,imageData:data,thumbnail:data,templateKey:key,editorState:m==='color'?(snap?.editorState||window.wadfunColorGetState?.()||null):null,createdAt:old?.createdAt||Date.now()};
-const out=await window.wadfunStorage.saveArtwork(rec);if(!out?.id)throw Error('save failed');editingId=out.id;window.wadfunLastFinishSave=out.id;return out}
+const out=await window.wadfunStorage.saveArtwork(rec);if(!out?.id)throw Error('save failed');if(m==='draw')editingId=out.id;window.wadfunLastFinishSave=out.id;return out}
 async function saveCurrentColor(snapshot){if(!window.wadfunColorGetState)return null;try{return await save('color',snapshot||captureColorSnapshot())}catch(e){console.error('[Wadfun] color autosave failed',e);return null}}
 function shouldSaveBeforeColorExit(target){const b=target?.closest?.('button,.back,[role="button"]');if(!b)return false;if(b.id==='wadfunChangePicture')return true;const text=(b.textContent||'').replace(/\s+/g,' ').trim();return /เปลี่ยนรูป|กลับ.*หมวด|หมวดทั้งหมด|กลับหน้าแรก|กลับ/.test(text)}
 function installColorExitCapture(){if(hookedColorExit||!document.body)return;document.addEventListener('click',e=>{if(active()!=='color'||!shouldSaveBeforeColorExit(e.target))return;const snap=captureColorSnapshot();if(snap)window.wadfunColorAutosaveReady=saveCurrentColor(snap)},true);hookedColorExit=true}
@@ -29,7 +36,7 @@ async function shareWork(id){await load();const w=await window.wadfunStorage.get
 async function deleteWork(id){if(!confirm('ลบผลงานนี้ใช่ไหม?'))return;await load();await window.wadfunStorage.deleteArtwork(id);render()}
 function editWork(id){return false}
 function hookGallery(){if(hookedGallery)return true;if(typeof window.gallery!=='function')return false;const old=window.gallery;window.gallery=async function(){try{await old.apply(this,arguments)}catch(e){console.error('[Wadfun] legacy gallery failed',e)}try{await render()}catch(e){console.error('[Wadfun] gallery render failed',e)}};hookedGallery=true;return true}
-function hookShow(){if(hookedShow||typeof window.show!=='function')return false;const oldShow=window.show;window.show=async function(id){if(active()==='color'&&id!=='color'){const snap=captureColorSnapshot();if(snap)await saveCurrentColor(snap);window.wadfunColorAutosaveReady=null}return oldShow.apply(this,arguments)};hookedShow=true;return true}
+function hookShow(){if(hookedShow||typeof window.show!=='function')return false;const oldShow=window.show;window.show=async function(id){if(active()==='color'&&id!=='color'){const snap=captureColorSnapshot();if(snap)window.wadfunColorAutosaveReady=saveCurrentColor(snap);if(window.wadfunColorAutosaveReady)await window.wadfunColorAutosaveReady;window.wadfunColorAutosaveReady=null}return oldShow.apply(this,arguments)};hookedShow=true;return true}
 function installColorAutosave(){if(autoObserver||!document.body)return;if(!document.getElementById('color'))return;let wasColorActive=active()==='color';autoObserver=new MutationObserver(()=>{const now=active()==='color';if(wasColorActive&&!now){const snap=captureColorSnapshot();if(snap)window.wadfunColorAutosaveReady=saveCurrentColor(snap)}wasColorActive=now});autoObserver.observe(document.body,{subtree:true,attributes:true,attributeFilter:['class']})}
 function boot(){cleanHomeMenu();hookShow();installColorExitCapture();installColorAutosave();let n=0;const t=setInterval(()=>{cleanHomeMenu();hookFinish();hookGallery();hookShow();installColorExitCapture();installColorAutosave();if(++n>300||hookedFinish&&hookedGallery&&hookedColorExit&&autoObserver)clearInterval(t)},100);load().then(render).catch(console.error)}
 window.wadfunFinish=finish;window.wadfunOpenWork=openWork;window.wadfunShareWork=shareWork;window.wadfunDeleteWork=deleteWork;window.wadfunEditWork=()=>false;window.wadfunCloseViewer=closeViewer;window.wadfunEditViewer=()=>false;window.wadfunShareViewer=()=>viewerId&&shareWork(viewerId);window.wadfunGallery={render,saveCurrentArtwork:save,saveCurrentColor,editWork};
