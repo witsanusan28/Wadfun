@@ -1,4 +1,4 @@
-/* Wadfun Gallery Engine V26 — saved color artworks always create a new record */
+/* Wadfun Gallery Engine V27 — every completed artwork save creates a new record */
 (function(){
 'use strict';
 const S='wadfun-storage.js';let sp=null,editingId=null,hookedFinish=false,hookedGallery=false,autoObserver=null,hookedShow=false,hookedColorExit=false,finishing=false;
@@ -12,10 +12,9 @@ function captureColorSnapshot(){try{const c=canvas('color');if(!c||!c.toDataURL|
 async function save(mode,snapshot,opts){await load();const m=mode==='color'||active()==='color'?'color':'draw',c=canvas(m),snap=m==='color'&&snapshot?snapshot:null,draft=!!opts?.draft;if(!c||!c.toDataURL)throw Error('canvas not found');const data=snap?.imageData||c.toDataURL('image/png');if(!data||data.length<100)throw Error('empty canvas');
 let old=null;const key=m==='color'?(snap?.templateKey||colorKey()):'';
 if(m==='color'&&draft){if(key&&key!==':'){const all=await window.wadfunStorage.getAllArtworks();old=all.find(x=>x.mode==='color'&&x.templateKey===key&&x.draft===true)||null}}
-else if(m==='draw'&&editingId){old=await window.wadfunStorage.getArtwork(editingId)}
 const rec={id:old?.id,name:m==='color'?(window.currentName||'ผลงานระบายสี'):'ผลงานวาดของฉัน',category:m==='color'?(window.wadfunActiveColorTemplate?.category||window.wadfunColorLibraryState?.category||''):'',mode:m,imageData:data,thumbnail:data,templateKey:key,editorState:m==='color'?(snap?.editorState||window.wadfunColorGetState?.()||null):null,createdAt:old?.createdAt||Date.now(),draft:m==='color'?draft:false};
-// Drafts may be updated. A completed color save is a brand-new artwork by design.
-const out=(!draft&&m==='color')
+// Drafts may be updated. Every completed save is ALWAYS a brand-new artwork.
+const out=!draft
   ?await window.wadfunStorage.createArtwork(Object.assign({},rec,{id:undefined,draft:false}))
   :await window.wadfunStorage.saveArtwork(rec);
 if(!out?.id)throw Error('save failed');if(m==='draw')editingId=out.id;window.wadfunLastFinishSave=out.id;
