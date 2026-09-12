@@ -1,8 +1,8 @@
-/* Wadfun Color Library Fix V9 — deterministic restore + saved artwork wins over drafts */
+/* Wadfun Color Library Fix V10 — deterministic restore after template initialization */
 (function(){
 'use strict';
-if(window.__wadfunColorLibraryV9)return;
-window.__wadfunColorLibraryV9=true;
+if(window.__wadfunColorLibraryV10)return;
+window.__wadfunColorLibraryV10=true;
 
 function normalizeScreens(){
   const active=document.querySelector('.screen.active');
@@ -15,69 +15,82 @@ obs.observe(document.documentElement,{subtree:true,attributes:true,attributeFilt
 setInterval(repair,250);
 repair();
 
-/*
- * Returning to a template can initialize or resize the canvas after restore.
- * Reapply the saved paint/ink layers after the canvas has settled.
- */
+/* Keep the original color engine intact. We only make its restore call repeat
+ * after the template has finished initializing, because the template loader
+ * can rebuild the paint/ink canvases immediately after an earlier restore. */
 function installRestoreGuard(){
   const fn=window.wadfunColorRestoreState;
   if(typeof fn!=='function')return false;
-  if(fn.__wadfunRestoreV9)return true;
+  if(fn.__wadfunRestoreV10)return true;
   const wrapped=function(state,done){
-    if(!state||!state.paint&&!state.ink){if(done)done();return false}
+    if(!state||(!state.paint&&!state.ink)){if(done)done();return false}
     const apply=()=>{
       try{fn(state,()=>{})}catch(e){console.error('[Wadfun] saved color restore failed',e)}
     };
     apply();
-    setTimeout(apply,80);
-    setTimeout(apply,220);
-    setTimeout(apply,500);
-    setTimeout(apply,900);
-    setTimeout(()=>{if(done)done()},1050);
+    [80,220,500,900,1400].forEach(ms=>setTimeout(apply,ms));
+    setTimeout(()=>{if(done)done()},1500);
     return true;
   };
-  wrapped.__wadfunRestoreV9=true;
+  wrapped.__wadfunRestoreV10=true;
   window.wadfunColorRestoreState=wrapped;
   return true;
 }
 
-/*
- * Important data-flow guard:
- * color-library resume uses the first matching record. Gallery autosave may
- * have created a newer draft, sometimes blank, for the same template. That
- * draft must never mask a completed saved artwork. We only reorder reads; no
- * records are created, deleted, or modified here.
- */
-function installStorageOrder(){
-  const s=window.wadfunStorage;
-  if(!s||s.__wadfunColorOrderV9)return false;
-  if(typeof s.getAllArtworks!=='function')return false;
-  const old=s.getAllArtworks.bind(s);
-  const hasState=x=>!!(x&&x.editorState&&(x.editorState.paint||x.editorState.ink));
-  const hasImage=x=>typeof x?.imageData==='string'&&x.imageData.length>100;
-  s.getAllArtworks=async function(){
-    const all=await old();
-    return all.slice().sort((a,b)=>{
-      const colorA=a?.mode==='color',colorB=b?.mode==='color';
-      if(colorA!==colorB)return 0;
-      if(colorA){
-        const score=x=>(x?.draft?0:8)+(hasState(x)?4:0)+(hasImage(x)?2:0);
-        const d=score(b)-score(a);
-        if(d)return d;
-      }
-      return (Number(b?.updatedAt)||0)-(Number(a?.updatedAt)||0);
-    });
+/* A second, independent restore pass is tied to templateReady itself. This
+ * is deliberately read-only: it never creates, deletes, or changes artwork
+ * records. Completed saved artwork is preferred over drafts. */
+function installTemplateReadyGuard(){
+  const fn=window.wadfunColorTemplateReady;
+  if(typeof fn!=='function')return false;
+  if(fn.__wadfunTemplateReadyV10)return true;
+  const wrapped=function(){
+    let out;
+    try{out=fn.apply(this,arguments)}catch(e){console.error('[Wadfun] template ready failed',e)}
+    setTimeout(()=>restoreCurrent(),60);
+    setTimeout(()=>restoreCurrent(),250);
+    setTimeout(()=>restoreCurrent(),700);
+    setTimeout(()=>restoreCurrent(),1400);
+    return out;
   };
-  s.__wadfunColorOrderV9=true;
+  wrapped.__wadfunTemplateReadyV10=true;
+  window.wadfunColorTemplateReady=wrapped;
   return true;
+}
+
+function currentKey(){
+  const st=window.wadfunColorLibraryState||{};
+  const cat=st.category||window.wadfunActiveColorTemplate?.category||'';
+  const idx=Number.isInteger(st.index)?st.index:'';
+  const name=window.wadfunActiveColorTemplate?.name||'';
+  return `${cat}:${idx}:${name}`;
+}
+async function restoreCurrent(){
+  try{
+    const s=window.wadfunStorage;
+    const restore=window.wadfunColorRestoreState;
+    if(!s||typeof s.getAllArtworks!=='function'||typeof restore!=='function')return false;
+    const key=currentKey();
+    if(!key||key==='::')return false;
+    const all=await s.getAllArtworks();
+    const matches=all.filter(x=>x?.mode==='color'&&x?.templateKey===key&&x?.editorState&&(x.editorState.paint||x.editorState.ink));
+    if(!matches.length)return false;
+    const finals=matches.filter(x=>x.draft!==true);
+    const pool=finals.length?finals:matches;
+    pool.sort((a,b)=>(Number(b.updatedAt)||0)-(Number(a.updatedAt)||0));
+    const saved=pool[0];
+    window.wadfunColorResumeId=saved.id;
+    restore(saved.editorState,()=>{});
+    return true;
+  }catch(e){console.error('[Wadfun] post-template color restore failed',e);return false}
 }
 
 let n=0;
 const timer=setInterval(()=>{
   const restore=installRestoreGuard();
-  const order=installStorageOrder();
-  if((restore||typeof window.wadfunColorRestoreState==='function')&&(order||window.wadfunStorage?.__wadfunColorOrderV9)||++n>180)clearInterval(timer);
+  const ready=installTemplateReadyGuard();
+  if((restore||typeof window.wadfunColorRestoreState==='function')&&(ready||typeof window.wadfunColorTemplateReady==='function')||++n>180)clearInterval(timer);
 },100);
 installRestoreGuard();
-installStorageOrder();
+installTemplateReadyGuard();
 })();
