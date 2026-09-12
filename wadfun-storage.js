@@ -1,4 +1,4 @@
-/* Wadfun Storage V2 — IndexedDB artwork storage + reliable mode metadata
+/* Wadfun Storage V3 — IndexedDB artwork storage + guaranteed-new artwork creation
  * Intentionally isolated from responsive-engine.js and drawing/color engines.
  */
 (function(){
@@ -22,11 +22,8 @@
       req.onupgradeneeded = function(){
         const db = req.result;
         let store;
-        if(!db.objectStoreNames.contains(STORE)){
-          store = db.createObjectStore(STORE,{keyPath:'id'});
-        }else{
-          store = req.transaction.objectStore(STORE);
-        }
+        if(!db.objectStoreNames.contains(STORE)) store = db.createObjectStore(STORE,{keyPath:'id'});
+        else store = req.transaction.objectStore(STORE);
         if(!store.indexNames.contains('updatedAt')) store.createIndex('updatedAt','updatedAt',{unique:false});
         if(!store.indexNames.contains('createdAt')) store.createIndex('createdAt','createdAt',{unique:false});
         if(!store.indexNames.contains('category')) store.createIndex('category','category',{unique:false});
@@ -34,10 +31,7 @@
       req.onsuccess = ()=>resolve(req.result);
       req.onerror = ()=>reject(req.error || new Error('Failed to open WadfunDB'));
       req.onblocked = ()=>reject(new Error('WadfunDB open request was blocked'));
-    }).catch(err=>{
-      dbPromise = null;
-      throw err;
-    });
+    }).catch(err=>{ dbPromise=null; throw err; });
     return dbPromise;
   }
 
@@ -50,64 +44,75 @@
 
   function transaction(mode,work){
     return open().then(db=>new Promise((resolve,reject)=>{
-      const tx = db.transaction(STORE,mode);
-      const store = tx.objectStore(STORE);
+      const tx=db.transaction(STORE,mode),store=tx.objectStore(STORE);
       let result;
-      try{ result = work(store); }catch(err){ reject(err); return; }
-      tx.oncomplete = ()=>resolve(result);
-      tx.onerror = ()=>reject(tx.error || new Error('IndexedDB transaction failed'));
-      tx.onabort = ()=>reject(tx.error || new Error('IndexedDB transaction aborted'));
+      try{ result=work(store); }catch(err){ reject(err); return; }
+      tx.oncomplete=()=>resolve(result);
+      tx.onerror=()=>reject(tx.error || new Error('IndexedDB transaction failed'));
+      tx.onabort=()=>reject(tx.error || new Error('IndexedDB transaction aborted'));
     }));
   }
 
-  // Older gallery records can miss/incorrectly carry mode metadata.
-  // Coloring records created by Wadfun carry a color-library category,
-  // so use that as a safe fallback when the stored mode says draw.
   function normalizeArtwork(artwork){
     if(!artwork) return artwork;
-    if(artwork.mode !== 'color' && artwork.category) return Object.assign({},artwork,{mode:'color'});
+    if(artwork.mode!=='color' && artwork.category) return Object.assign({},artwork,{mode:'color'});
     return artwork;
   }
 
-  async function init(){
-    await open();
-    return true;
-  }
+  async function init(){ await open(); return true; }
 
+  // Upsert API: intentionally keeps an existing id when supplied.
   async function saveArtwork(data){
-    if(!data || typeof data !== 'object') throw new TypeError('Artwork data is required');
+    if(!data || typeof data!=='object') throw new TypeError('Artwork data is required');
     if(!data.imageData) throw new TypeError('imageData is required');
-    const now = Date.now();
-    const activeScreen = document.querySelector('.screen.active')?.id;
-    const detectedMode = activeScreen === 'color' ? 'color' : activeScreen === 'draw' ? 'draw' : data.mode;
-    const artwork = Object.assign({},data,{
-      id: data.id || id(),
-      name: data.name || 'ผลงานไม่มีชื่อ',
-      category: data.category || '',
-      mode: detectedMode || 'draw',
-      createdAt: data.createdAt || now,
-      updatedAt: now
+    const now=Date.now(),activeScreen=document.querySelector('.screen.active')?.id;
+    const detectedMode=activeScreen==='color'?'color':activeScreen==='draw'?'draw':data.mode;
+    const artwork=Object.assign({},data,{
+      id:data.id||id(),
+      name:data.name||'ผลงานไม่มีชื่อ',
+      category:data.category||'',
+      mode:detectedMode||'draw',
+      createdAt:data.createdAt||now,
+      updatedAt:now
     });
     await transaction('readwrite',store=>request(store.put(artwork)));
     return artwork;
   }
 
+  // Create API: ALWAYS creates a fresh record. Supplied ids are deliberately ignored.
+  // store.add() also makes accidental overwrites impossible.
+  async function createArtwork(data){
+    if(!data || typeof data!=='object') throw new TypeError('Artwork data is required');
+    if(!data.imageData) throw new TypeError('imageData is required');
+    const now=Date.now(),activeScreen=document.querySelector('.screen.active')?.id;
+    const detectedMode=activeScreen==='color'?'color':activeScreen==='draw'?'draw':data.mode;
+    const artwork=Object.assign({},data,{
+      id:id(),
+      name:data.name||'ผลงานไม่มีชื่อ',
+      category:data.category||'',
+      mode:detectedMode||'draw',
+      createdAt:data.createdAt||now,
+      updatedAt:now
+    });
+    await transaction('readwrite',store=>request(store.add(artwork)));
+    return artwork;
+  }
+
   async function getArtwork(artworkId){
     if(!artworkId) return null;
-    const artwork = await transaction('readonly',store=>request(store.get(artworkId)));
-    return normalizeArtwork(artwork);
+    return normalizeArtwork(await transaction('readonly',store=>request(store.get(artworkId))));
   }
 
   async function getAllArtworks(){
-    const items = await transaction('readonly',store=>request(store.getAll()));
-    return (items || []).map(normalizeArtwork).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+    const items=await transaction('readonly',store=>request(store.getAll()));
+    return (items||[]).map(normalizeArtwork).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
   }
 
   async function updateArtwork(artworkId,patch){
     if(!artworkId) throw new TypeError('Artwork id is required');
-    const current = await getArtwork(artworkId);
+    const current=await getArtwork(artworkId);
     if(!current) return null;
-    const updated = Object.assign({},current,patch||{}, {id:artworkId,updatedAt:Date.now()});
+    const updated=Object.assign({},current,patch||{},{id:artworkId,updatedAt:Date.now()});
     await transaction('readwrite',store=>request(store.put(updated)));
     return normalizeArtwork(updated);
   }
@@ -118,13 +123,10 @@
     return true;
   }
 
-  async function clearArtworks(){
-    await transaction('readwrite',store=>request(store.clear()));
-    return true;
-  }
+  async function clearArtworks(){ await transaction('readwrite',store=>request(store.clear())); return true; }
 
-  window.wadfunStorage = Object.freeze({
+  window.wadfunStorage=Object.freeze({
     DB_NAME,DB_VERSION,STORE,
-    init,saveArtwork,getArtwork,getAllArtworks,updateArtwork,deleteArtwork,clearArtworks
+    init,saveArtwork,createArtwork,getArtwork,getAllArtworks,updateArtwork,deleteArtwork,clearArtworks
   });
 })();
