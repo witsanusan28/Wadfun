@@ -1,83 +1,16 @@
-/* Wadfun Color Library Fix V13 — deterministic visual resume from the saved artwork */
+/* Wadfun Color Library Fix V14 — restore saved colors after engine initialization */
 (function(){
 'use strict';
-if(window.__wadfunColorLibraryV13)return;
-window.__wadfunColorLibraryV13=true;
-
-function normalizeScreens(){
-  const active=document.querySelector('.screen.active');
-  if(!active)return;
-  document.querySelectorAll('.screen').forEach(s=>s.style.removeProperty('display'));
-}
-const obs=new MutationObserver(()=>requestAnimationFrame(normalizeScreens));
-obs.observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['class']});
-setInterval(normalizeScreens,250);
-normalizeScreens();
-
-function currentKey(){
-  const st=window.wadfunColorLibraryState||{};
-  const cat=st.category||window.wadfunActiveColorTemplate?.category||'';
-  const idx=Number.isInteger(st.index)?st.index:'';
-  const item=window.wadfunColorLibraryData?.[cat]?.items?.[idx];
-  const name=item?.[0]||window.wadfunActiveColorTemplate?.name||'';
-  return {cat,idx,name,key:`${cat}:${idx}:${name}`};
-}
-async function findSaved(){
-  try{
-    const s=window.wadfunStorage;
-    if(!s||typeof s.getAllArtworks!=='function')return null;
-    const {cat,idx,key}=currentKey();
-    const all=await s.getAllArtworks();
-    let a=all.filter(x=>x?.mode==='color'&&x?.templateKey===key&&x?.imageData);
-    if(!a.length)a=all.filter(x=>x?.mode==='color'&&typeof x.templateKey==='string'&&x.templateKey.startsWith(`${cat}:${idx}:`)&&x?.imageData);
-    if(!a.length&&window.currentName)a=all.filter(x=>x?.mode==='color'&&x?.name===window.currentName&&x?.imageData);
-    if(!a.length)return null;
-    const finals=a.filter(x=>x.draft!==true),pool=finals.length?finals:a;
-    pool.sort((x,y)=>(Number(y.updatedAt)||0)-(Number(x.updatedAt)||0));
-    return pool[0]||null;
-  }catch(e){console.error('[Wadfun] find saved color failed',e);return null}
-}
-function loadImage(src){return new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=reject;im.src=src})}
-async function makePaint(saved){
-  const c=document.getElementById('colorCanvas');
-  const {cat,idx}=currentKey();
-  const item=window.wadfunColorLibraryData?.[cat]?.items?.[idx];
-  if(!c?.width||!c?.height||!saved?.imageData||!item)return null;
-  const out=document.createElement('canvas');out.width=c.width;out.height=c.height;
-  const ox=out.getContext('2d',{willReadFrequently:true});
-  const img=await loadImage(saved.imageData);ox.drawImage(img,0,0,out.width,out.height);
-  const line=document.createElement('canvas');line.width=c.width;line.height=c.height;
-  const lx=line.getContext('2d',{willReadFrequently:true});
-  const lineImg=await loadImage('data:image/svg+xml;charset=utf-8,'+encodeURIComponent(item[2]));
-  const pad=Math.min(line.width,line.height)*.08,scale=Math.min((line.width-pad*2)/500,(line.height-pad*2)/500),size=500*scale;
-  lx.drawImage(lineImg,(line.width-size)/2,(line.height-size)/2,size,size);
-  const od=ox.getImageData(0,0,out.width,out.height),ld=lx.getImageData(0,0,line.width,line.height);
-  for(let i=0;i<od.data.length;i+=4){
-    const lr=ld.data[i],lg=ld.data[i+1],lb=ld.data[i+2],la=ld.data[i+3];
-    const white=od.data[i]>248&&od.data[i+1]>248&&od.data[i+2]>248;
-    if(white)od.data[i+3]=0;
-    if(la>=18&&(.299*lr+.587*lg+.114*lb)<205)od.data[i+3]=0;
-  }
-  ox.putImageData(od,0,0);return out.toDataURL('image/png');
-}
-function install(){
-  const original=window.wadfunColorRestoreState;
-  if(typeof original!=='function'||original.__wadfunColorV13Wrapped)return false;
-  const wrapped=function(state,done){
-    let ended=false;const finish=()=>{if(ended)return;ended=true;if(done)done()};
-    const apply=async(saved)=>{try{const paint=await makePaint(saved);if(paint)original({paint,ink:''},()=>{});return !!paint}catch(e){console.error('[Wadfun] V13 visual resume failed',e);return false}};
-    (async()=>{
-      const saved=await findSaved();
-      if(!saved){finish();return}
-      let exact=false;
-      try{if(state?.paint||state?.ink){original({paint:state.paint||'',ink:state.ink||''},async()=>{exact=true;await apply(saved);setTimeout(()=>apply(saved),250);setTimeout(()=>apply(saved),900);setTimeout(()=>apply(saved),1800);finish()});return}}catch(e){console.error('[Wadfun] exact color restore failed',e)}
-      await apply(saved);setTimeout(()=>apply(saved),250);setTimeout(()=>apply(saved),900);setTimeout(()=>apply(saved),1800);finish();
-    })().catch(e=>{console.error('[Wadfun] V13 resume failed',e);finish()});
-    return true;
-  };
-  wrapped.__wadfunColorV13Wrapped=true;
-  window.wadfunColorRestoreState=wrapped;
-  return true;
-}
-let n=0;const timer=setInterval(()=>{if(install()||++n>180)clearInterval(timer)},100);install();
+if(window.__wadfunColorLibraryV14)return;window.__wadfunColorLibraryV14=true;
+function normalizeScreens(){const a=document.querySelector('.screen.active');if(!a)return;document.querySelectorAll('.screen').forEach(s=>s.style.removeProperty('display'))}
+const obs=new MutationObserver(()=>requestAnimationFrame(normalizeScreens));obs.observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['class']});setInterval(normalizeScreens,250);normalizeScreens();
+function keyInfo(){const st=window.wadfunColorLibraryState||{},cat=st.category||window.wadfunActiveColorTemplate?.category||'',idx=Number.isInteger(st.index)?st.index:'',item=window.wadfunColorLibraryData?.[cat]?.items?.[idx],name=item?.[0]||window.wadfunActiveColorTemplate?.name||'';return{cat,idx,key:`${cat}:${idx}:${name}`}}
+async function findSaved(){try{const s=window.wadfunStorage;if(!s||typeof s.getAllArtworks!=='function')return null;const {cat,idx,key}=keyInfo(),all=await s.getAllArtworks();let a=all.filter(x=>x?.mode==='color'&&x?.templateKey===key&&x?.imageData);if(!a.length)a=all.filter(x=>x?.mode==='color'&&typeof x.templateKey==='string'&&x.templateKey.startsWith(`${cat}:${idx}:`)&&x?.imageData);if(!a.length&&window.currentName)a=all.filter(x=>x?.mode==='color'&&x?.name===window.currentName&&x?.imageData);const finals=a.filter(x=>x.draft!==true),pool=finals.length?finals:a;pool.sort((x,y)=>(Number(y.updatedAt)||0)-(Number(x.updatedAt)||0));return pool[0]||null}catch(e){console.error('[Wadfun] saved lookup failed',e);return null}}
+function loadImage(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src})}
+async function makePaint(saved){const c=document.getElementById('colorCanvas'),{cat,idx}=keyInfo(),item=window.wadfunColorLibraryData?.[cat]?.items?.[idx];if(!c?.width||!c?.height||!saved?.imageData||!item)return null;const out=document.createElement('canvas');out.width=c.width;out.height=c.height;const ox=out.getContext('2d',{willReadFrequently:true}),img=await loadImage(saved.imageData);ox.drawImage(img,0,0,out.width,out.height);const line=document.createElement('canvas');line.width=c.width;line.height=c.height;const lx=line.getContext('2d',{willReadFrequently:true}),li=await loadImage('data:image/svg+xml;charset=utf-8,'+encodeURIComponent(item[2])),pad=Math.min(line.width,line.height)*.08,scale=Math.min((line.width-pad*2)/500,(line.height-pad*2)/500),size=500*scale;lx.drawImage(li,(line.width-size)/2,(line.height-size)/2,size,size);const od=ox.getImageData(0,0,out.width,out.height),ld=lx.getImageData(0,0,line.width,line.height);for(let i=0;i<od.data.length;i+=4){if(od.data[i]>248&&od.data[i+1]>248&&od.data[i+2]>248)od.data[i+3]=0;const lr=ld.data[i],lg=ld.data[i+1],lb=ld.data[i+2],la=ld.data[i+3];if(la>=18&&(.299*lr+.587*lg+.114*lb)<205)od.data[i+3]=0}ox.putImageData(od,0,0);return out.toDataURL('image/png')}
+async function applySaved(){const saved=await findSaved();if(!saved)return false;const restore=window.wadfunColorRestoreState;if(typeof restore!=='function')return false;try{if(saved.editorState&&(saved.editorState.paint||saved.editorState.ink)){let ok=false;await new Promise(r=>{try{const z=restore(saved.editorState,()=>{ok=true;r()});if(z!==true)r()}catch(e){r()}setTimeout(r,1800)});if(ok)return true}}catch(e){}try{const paint=await makePaint(saved);if(!paint)return false;let ok=false;await new Promise(r=>{try{const z=restore({paint,ink:''},()=>{ok=true;r()});if(z!==true)r()}catch(e){r()}setTimeout(r,1800)});return ok}catch(e){console.error('[Wadfun] saved visual fallback failed',e);return false}}
+let last='',busy=false;
+async function resume(){if(!document.getElementById('color')?.classList.contains('active'))return;const st=window.wadfunColorLibraryState||{},k=`${st.category||''}:${Number.isInteger(st.index)?st.index:''}`;const c=document.getElementById('colorCanvas');if(!k||k===last||busy||!c?.width||!c?.height)return;busy=true;try{if(await applySaved())last=k}catch(e){console.error('[Wadfun] resume failed',e)}finally{busy=false}}
+/* Do not wrap the engine API: Color Engine V31 rebinds it during template setup. */
+setInterval(resume,250);
 })();
