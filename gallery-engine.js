@@ -1,92 +1,28 @@
-/* Wadfun Gallery Engine V12 — unified save pipeline for Draw + Color */
+/* Wadfun Gallery Engine V16 — finish save bridge + Gallery controls */
 (function(){
 'use strict';
-const STORAGE_SRC='wadfun-storage.js';
-let editingId=null,editingMode=null,storagePromise=null,finishWrapped=false,galleryWrapped=false;
-function loadStorage(){
-  if(window.wadfunStorage)return Promise.resolve(window.wadfunStorage);
-  if(storagePromise)return storagePromise;
-  storagePromise=new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=STORAGE_SRC;s.onload=()=>window.wadfunStorage?resolve(window.wadfunStorage):reject(new Error('Wadfun storage unavailable'));s.onerror=()=>reject(new Error('Cannot load wadfun-storage.js'));document.head.appendChild(s)});
-  return storagePromise;
-}
-async function works(){try{await loadStorage();return await window.wadfunStorage.getAllArtworks()}catch(e){console.error('[Wadfun] gallery read failed',e);return[]}}
-async function get(id){try{await loadStorage();return await window.wadfunStorage.getArtwork(id)}catch(e){console.error('[Wadfun] artwork read failed',e);return null}}
-function imageOf(w){return w?.imageData||w?.img||''}
-function esc(s){return String(s??'').replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[m]))}
-function activeScreen(){return document.querySelector('.screen.active')?.id||''}
-function activeCanvas(){return document.querySelector('.screen.active canvas.canvas')||document.querySelector('.screen.active canvas')}
-function colorCanvas(){return document.getElementById('colorCanvas')}
-function sourceCanvas(mode){return mode==='color'?colorCanvas():(document.getElementById('drawCanvas')||activeCanvas())}
-function loadImageIntoActiveCanvas(w){return new Promise(resolve=>{const canvas=activeCanvas();if(!canvas){resolve(false);return}const img=new Image();img.onload=()=>{try{const r=canvas.getBoundingClientRect(),W=Math.max(1,Math.round(r.width||canvas.width||img.naturalWidth)),H=Math.max(1,Math.round(r.height||canvas.height||img.naturalHeight));canvas.width=W;canvas.height=H;const ctx=canvas.getContext('2d');ctx.clearRect(0,0,W,H);ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);const scale=Math.min(W/img.naturalWidth,H/img.naturalHeight),dw=img.naturalWidth*scale,dh=img.naturalHeight*scale;ctx.drawImage(img,(W-dw)/2,(H-dh)/2,dw,dh);canvas.dispatchEvent(new Event('wadfun-work-loaded'));resolve(true)}catch(e){console.error('[Wadfun] load edit failed',e);resolve(false)}};img.onerror=()=>resolve(false);img.src=imageOf(w)})}
-async function editWork(id){const w=await get(id);if(!w)return;editingId=String(id);editingMode=w.mode==='color'?'color':'draw';closeViewer();try{if(typeof window.show==='function')window.show(editingMode)}catch(e){}setTimeout(()=>loadImageIntoActiveCanvas(w),220)}
-async function openWork(id){const w=await get(id),src=imageOf(w);if(!src)return;ensureViewer();const v=document.getElementById('wadfunViewer');v.dataset.id=String(id);document.getElementById('wadfunViewerImg').src=src;v.classList.add('open');document.body.classList.add('wadfun-viewer-open')}
-function closeViewer(){const v=document.getElementById('wadfunViewer');if(v){v.classList.remove('open');document.body.classList.remove('wadfun-viewer-open')}}
-function currentId(){return document.getElementById('wadfunViewer')?.dataset.id}
-function closeWorkViewer(){closeViewer()}
-function editWorkViewer(){const id=currentId();if(id)editWork(id)}
-function shareWorkViewer(){const id=currentId();if(id)shareWork(id)}
-async function shareWork(id){const w=await get(id),src=imageOf(w);if(!src)return;try{if(navigator.share){let file=null;try{const r=await fetch(src),b=await r.blob();file=new File([b],'Wadfun.png',{type:b.type||'image/png'})}catch(e){}if(file&&navigator.canShare?.({files:[file]}))await navigator.share({title:'ผลงานจาก Wadfun',text:'ผลงานของฉัน',files:[file]});else await navigator.share({title:'ผลงานจาก Wadfun',text:'ผลงานของฉัน'})}}catch(e){if(e?.name!=='AbortError')console.error('[Wadfun] share failed',e)}}
-function ensureViewer(){if(document.getElementById('wadfunViewer'))return;const s=document.createElement('style');s.textContent='.wadfun-viewer-open{overflow:hidden}.wadfun-viewer{display:none;position:fixed;inset:0;z-index:99999;background:rgba(20,43,57,.94);padding:12px;align-items:center;justify-content:center}.wadfun-viewer.open{display:flex}.wadfun-viewer-card{width:min(960px,100%);height:min(94dvh,900px);background:#fff;border-radius:28px;padding:14px;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)}.wadfun-viewer-head{display:flex;justify-content:flex-end;padding:2px 2px 10px}.wadfun-viewer-close{width:44px;height:44px;border-radius:50%;background:#ffe6e8;font-size:24px;font-weight:1000}.wadfun-viewer-stage{flex:1;min-height:0;border-radius:20px;background:#f5fbff;display:flex;align-items:center;justify-content:center;overflow:hidden}.wadfun-viewer-stage img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block}.wadfun-viewer-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding-top:10px}.wadfun-viewer-actions button{min-width:130px}.wadfun-share{background:#e8f7ff;border:2px solid #bfe6f7;border-radius:16px;padding:11px 15px;font-weight:1000}.wadfun-edit{background:#fff4cf;border:2px solid #e6c56a;border-radius:16px;padding:11px 15px;font-weight:1000}@media(max-width:600px){.wadfun-viewer{padding:6px}.wadfun-viewer-card{height:calc(100dvh - 12px);border-radius:22px;padding:9px}.wadfun-viewer-actions button{flex:1;min-width:0}.wadfun-viewer-stage{border-radius:16px}}';document.head.appendChild(s);const v=document.createElement('div');v.id='wadfunViewer';v.className='wadfun-viewer';v.innerHTML='<div class="wadfun-viewer-card" role="dialog" aria-modal="true"><div class="wadfun-viewer-head"><button class="wadfun-viewer-close" type="button" onclick="closeWorkViewer()">×</button></div><div class="wadfun-viewer-stage"><img id="wadfunViewerImg" alt="ผลงานของฉัน"></div><div class="wadfun-viewer-actions"><button class="primary" type="button" onclick="editWorkViewer()">✏️ แก้ไขต่อ</button><button class="wadfun-share" type="button" onclick="shareWorkViewer()">📤 แชร์</button></div></div>';v.addEventListener('click',e=>{if(e.target===v)closeViewer()});document.body.appendChild(v)}
-function injectGalleryStyle(){if(document.getElementById('wadfun-gallery-v9'))return;const s=document.createElement('style');s.id='wadfun-gallery-v9';s.textContent='.wadfun-gallery-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;padding:14px 16px;border-radius:22px;background:linear-gradient(135deg,#e5f8ff,#fff1f8);border:2px solid #dceef6}.wadfun-gallery-head h1{margin:0;font-size:28px}.wadfun-gallery-count{background:#fff;border:2px solid #d9edf7;border-radius:99px;padding:8px 13px;font-weight:1000;white-space:nowrap}.wadfun-gallery-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}.wadfun-gallery-card{background:#fff;border:2px solid #e2edf2;border-radius:24px;padding:9px;box-shadow:0 8px 22px rgba(43,93,112,.09);overflow:hidden}.wadfun-gallery-thumb{display:block;width:100%;aspect-ratio:1;padding:0;border-radius:18px;background:#f7fbfd;overflow:hidden;border:0}.wadfun-gallery-thumb img{width:100%;height:100%;object-fit:contain;display:block}.wadfun-gallery-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}.wadfun-gallery-actions button{padding:10px 5px}.wadfun-gallery-edit{grid-column:1/-1;background:#fff4cf;border:2px solid #e6c56a;border-radius:16px;padding:10px 6px;font-weight:1000}.wadfun-gallery-empty{grid-column:1/-1;text-align:center;padding:42px 18px;background:#fffdf0;border:2px dashed #efd47a;border-radius:24px;font-weight:900;font-size:18px}@media(max-width:950px){.wadfun-gallery-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:650px){.wadfun-gallery-head{padding:11px 12px}.wadfun-gallery-head h1{font-size:22px}.wadfun-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.wadfun-gallery-card{border-radius:18px;padding:7px}.wadfun-gallery-thumb{border-radius:14px}.wadfun-gallery-actions button{font-size:12px;padding:8px 4px}}';document.head.appendChild(s)}
-async function render(){const g=document.getElementById('galleryGrid');if(!g)return;injectGalleryStyle();const a=await works();g.classList.add('wadfun-gallery-grid');if(!a.length){g.innerHTML='<div class="wadfun-gallery-empty"><div style="font-size:52px">🎨✨</div>ยังไม่มีผลงานเลย<br><small>ลองวาดหรือระบายสีสักรูปนะ!</small></div>';return}g.innerHTML='<div class="wadfun-gallery-head" style="grid-column:1/-1"><h1>🖼️ ผลงานของฉัน</h1><span class="wadfun-gallery-count">'+a.length+' รูป ✨</span></div>'+a.map(w=>{const src=esc(imageOf(w)),id=esc(w.id);return `<article class="wadfun-gallery-card"><button type="button" class="wadfun-gallery-thumb" aria-label="เปิดผลงาน" onclick="openWork('${id}')"><img src="${src}" alt="ผลงานของฉัน" loading="lazy"></button><div class="wadfun-gallery-actions"><button class="primary" onclick="openWork('${id}')">👀 ดู</button><button class="wadfun-share" onclick="shareWork('${id}')">📤 แชร์</button><button class="wadfun-gallery-edit" onclick="editWork('${id}')">✏️ แก้ไขต่อ</button></div><button class="danger" style="width:100%;margin-top:6px" onclick="deleteWork('${id}')">🗑️ ลบ</button></article>`}).join('')}
-async function saveCurrentArtwork(mode){
-  await loadStorage();
-  const resolvedMode=mode==='color'||activeScreen()==='color'?'color':'draw';
-  const c=sourceCanvas(resolvedMode);
-  if(!c||typeof c.toDataURL!=='function')throw new Error(resolvedMode==='color'?'Color canvas not found':'No drawing canvas found');
-  const existing=editingId?await get(editingId):null;
-  const imageData=c.toDataURL('image/png');
-  if(!imageData||imageData.length<100)throw new Error('Canvas image is empty');
-  const record={id:existing?.id,name:'ผลงานของฉัน',category:resolvedMode==='color'?(window.wadfunActiveColorTemplate?.category||''):'',mode:resolvedMode,imageData,thumbnail:imageData,createdAt:existing?.createdAt||Date.now()};
-  const saved=await window.wadfunStorage.saveArtwork(record);
-  if(!saved?.id)throw new Error('Artwork was not saved');
-  editingId=null;editingMode=null;window.wadfunLastFinishSave=saved.id;
-  console.log('[Wadfun] artwork saved',saved.id,resolvedMode);
-  return saved;
-}
-async function handleFinish(mode){
-  const resolvedMode=mode==='color'||activeScreen()==='color'?'color':'draw';
-  const c=sourceCanvas(resolvedMode);
-  const saved=await saveCurrentArtwork(resolvedMode);
-  const out=document.getElementById('finishImg');
-  if(out)out.src=c.toDataURL('image/png');
-  if(typeof window.show==='function')window.show('finish');
-  return saved;
-}
-function installFinishHook(){
-  if(finishWrapped)return true;
-  if(typeof window.finishCanvas!=='function')return false;
-  const fn=window.finishCanvas;
-  window.finishCanvas=async function(){
-    const explicit=arguments[0];
-    const mode=explicit==='colorCanvas'||activeScreen()==='color'?'color':'draw';
-    try{return await handleFinish(mode)}catch(e){console.error('[Wadfun] finish save failed',e);alert('บันทึกผลงานไม่สำเร็จ ลองอีกครั้งนะ');return null}
-  };
-  finishWrapped=true;console.log('[Wadfun] unified finish save hook installed');return true;
-}
-function installGalleryNavigationHook(){
-  if(galleryWrapped)return true;
-  if(typeof window.gallery!=='function')return false;
-  const fn=window.gallery;
-  window.gallery=async function(){
-    const from=activeScreen();
-    if(from==='color'||from==='draw'){
-      try{await saveCurrentArtwork(from==='color'?'color':'draw')}
-      catch(e){console.error('[Wadfun] save before gallery failed',e);alert('บันทึกผลงานไม่สำเร็จ ลองอีกครั้งนะ');return null}
-    }
-    try{
-      const out=await fn.apply(this,arguments);
-      await render();
-      return out;
-    }catch(e){console.error('[Wadfun] gallery failed',e);return null}
-  };
-  galleryWrapped=true;console.log('[Wadfun] gallery navigation save hook installed');return true;
-}
-function watchHooks(){let n=0;const t=setInterval(()=>{n++;const a=installFinishHook(),b=installGalleryNavigationHook();if(a&&b||n>300)clearInterval(t)},100)}
-async function deleteWork(id){const w=await get(id);if(!w)return;if(!confirm('ลบผลงานนี้ใช่ไหม?'))return;await window.wadfunStorage.deleteArtwork(id);await render()}
-async function migrateLegacy(){if(localStorage.getItem('wadfunIndexedDBMigrated')==='1')return;let old=[];try{old=JSON.parse(localStorage.getItem('wadfunWorks')||'[]')}catch(e){}if(!Array.isArray(old)||!old.length){localStorage.setItem('wadfunIndexedDBMigrated','1');return}for(const w of old){try{if(w?.img)await window.wadfunStorage.saveArtwork({id:String(w.id),name:'ผลงานของฉัน',mode:w.mode||'draw',imageData:w.img,thumbnail:w.img,createdAt:w.createdAt||Date.now()})}catch(e){console.error('[Wadfun] legacy migration failed',e)}}localStorage.setItem('wadfunIndexedDBMigrated','1')}
-function cleanHomeMenu(){const menu=document.querySelector('.sideMenu');if(!menu)return;[...menu.querySelectorAll('.woodBtn')].forEach(b=>{const t=b.textContent||'';if(t.includes('ผลงานของหนู')||t.includes('วิธีใช้งาน'))b.remove()})}
-function boot(){cleanHomeMenu();loadStorage().then(migrateLegacy).then(render).catch(e=>console.error('[Wadfun] storage boot failed',e));watchHooks()}
-window.editWork=editWork;window.openWork=openWork;window.shareWork=shareWork;window.closeWorkViewer=closeWorkViewer;window.editWorkViewer=editWorkViewer;window.shareWorkViewer=shareWorkViewer;window.deleteWork=deleteWork;
+const S='wadfun-storage.js'; let sp=null, editingId=null, hookedFinish=false, hookedGallery=false;
+function load(){if(window.wadfunStorage)return Promise.resolve(window.wadfunStorage);if(sp)return sp;sp=new Promise((res,rej)=>{const s=document.createElement('script');s.src=S;s.onload=()=>window.wadfunStorage?res(window.wadfunStorage):rej(Error('storage unavailable'));s.onerror=rej;document.head.appendChild(s)});return sp}
+const active=()=>document.querySelector('.screen.active')?.id||'';
+const canvas=m=>m==='color'?document.getElementById('colorCanvas'):(document.getElementById('drawCanvas')||document.querySelector('.screen.active canvas'));
+const image=w=>w?.imageData||w?.img||'';
+const esc=s=>String(s??'').replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[m]));
+async function save(mode){await load();const m=mode==='color'||active()==='color'?'color':'draw',c=canvas(m);if(!c||!c.toDataURL)throw Error('canvas not found');const data=c.toDataURL('image/png');if(!data||data.length<100)throw Error('empty canvas');const old=editingId?await window.wadfunStorage.getArtwork(editingId):null;const rec={id:old?.id,name:m==='color'?(window.currentName||'ผลงานระบายสี'):'ผลงานวาดของฉัน',category:m==='color'?(window.wadfunActiveColorTemplate?.category||''):'',mode:m,imageData:data,thumbnail:data,createdAt:old?.createdAt||Date.now()};const out=await window.wadfunStorage.saveArtwork(rec);if(!out?.id)throw Error('save failed');editingId=null;window.wadfunLastFinishSave=out.id;return out}
+async function finish(){const m=active()==='color'?'color':'draw';const c=canvas(m);await save(m);const out=document.getElementById('finishImg');if(out&&c)out.src=c.toDataURL('image/png');if(typeof window.show==='function')window.show('finish');return true}
+function hookFinish(){if(hookedFinish)return true;if(typeof window.finishCanvas!=='function')return false;window.finishCanvas=finish;hookedFinish=true;return true}
+function finishClickCapture(e){const b=e.target?.closest?.('button');if(!b)return;const t=(b.textContent||'').replace(/\s+/g,'');if(!/เสร็จ|done/i.test(t))return;if(active()!=='draw'&&active()!=='color')return;e.preventDefault();e.stopImmediatePropagation();finish().catch(err=>{console.error('[Wadfun] finish save failed',err);alert('บันทึกผลงานไม่สำเร็จ ลองอีกครั้งนะ')})}
+function styles(){if(document.getElementById('wadfun-gallery-v16'))return;const s=document.createElement('style');s.id='wadfun-gallery-v16';s.textContent='.wadfun-gallery-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.wadfun-gallery-card{background:#fff;border:2px solid #e2edf2;border-radius:20px;padding:8px;box-shadow:0 8px 22px rgba(43,93,112,.09)}.wadfun-gallery-thumb{display:block;width:100%;aspect-ratio:1;padding:0;border:0;border-radius:14px;background:#f7fbfd;overflow:hidden}.wadfun-gallery-thumb img{width:100%;height:100%;object-fit:contain}.wadfun-gallery-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:7px}.wadfun-gallery-actions button{padding:9px 4px}.wadfun-gallery-edit{grid-column:1/-1;background:#fff4cf;border:2px solid #e6c56a;border-radius:15px;padding:9px 4px;font-weight:1000}.wadfun-gallery-share{background:#e8f7ff;border:2px solid #bfe6f7;border-radius:15px;padding:9px 4px;font-weight:1000}.wadfun-gallery-empty{grid-column:1/-1;text-align:center;padding:40px;border:2px dashed #efd47a;border-radius:20px}@media(max-width:650px){.wadfun-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.wadfun-gallery-card{padding:7px;border-radius:18px}.wadfun-gallery-actions button{font-size:12px;padding:8px 3px}}';document.head.appendChild(s)}
+async function list(){await load();return window.wadfunStorage.getAllArtworks()}
+async function render(){const g=document.getElementById('galleryGrid');if(!g)return;styles();const a=await list();g.classList.add('wadfun-gallery-grid');if(!a.length){g.innerHTML='<div class="wadfun-gallery-empty">🎨✨<br>ยังไม่มีผลงานเลย</div>';return}g.innerHTML=a.map(w=>{const id=esc(w.id),src=esc(image(w));return '<article class="wadfun-gallery-card"><button class="wadfun-gallery-thumb" onclick="wadfunOpenWork(\''+id+'\')"><img src="'+src+'" alt="ผลงานของฉัน"></button><div class="wadfun-gallery-actions"><button class="primary" onclick="wadfunOpenWork(\''+id+'\')">👀 ดู</button><button class="wadfun-gallery-share" onclick="wadfunShareWork(\''+id+'\')">📤 แชร์</button><button class="wadfun-gallery-edit" onclick="wadfunEditWork(\''+id+'\')">✏️ แก้ไขต่อ</button></div><button class="danger" style="width:100%;margin-top:6px" onclick="wadfunDeleteWork(\''+id+'\')">🗑️ ลบ</button></article>'}).join('')}
+let viewerId=null;
+function ensureViewer(){if(document.getElementById('wadfunViewer'))return;const s=document.createElement('style');s.textContent='.wadfun-viewer{display:none;position:fixed;inset:0;z-index:99999;background:rgba(20,43,57,.94);align-items:center;justify-content:center;padding:8px}.wadfun-viewer.open{display:flex}.wadfun-viewer-card{background:#fff;border-radius:24px;padding:10px;width:min(900px,96vw);height:min(94dvh,900px);display:flex;flex-direction:column}.wadfun-viewer-stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden}.wadfun-viewer-stage img{max-width:100%;max-height:100%;object-fit:contain}.wadfun-viewer-actions{display:flex;gap:8px;padding-top:8px}.wadfun-viewer-actions button{flex:1;padding:11px;border-radius:14px;font-weight:1000}.wadfun-viewer-edit{background:#fff4cf;border:2px solid #e6c56a}';document.head.appendChild(s);const v=document.createElement('div');v.id='wadfunViewer';v.className='wadfun-viewer';v.innerHTML='<div class="wadfun-viewer-card"><button onclick="wadfunCloseViewer()">✕ ปิด</button><div class="wadfun-viewer-stage"><img id="wadfunViewerImg"></div><div class="wadfun-viewer-actions"><button class="wadfun-viewer-edit" onclick="wadfunEditViewer()">✏️ แก้ไขต่อ</button><button onclick="wadfunShareViewer()">📤 แชร์</button></div></div>';v.addEventListener('click',e=>{if(e.target===v)closeViewer()});document.body.appendChild(v)}
+function closeViewer(){document.getElementById('wadfunViewer')?.classList.remove('open');viewerId=null}
+async function openWork(id){await load();const w=await window.wadfunStorage.getArtwork(id);if(!image(w))return;ensureViewer();viewerId=String(id);document.getElementById('wadfunViewerImg').src=image(w);document.getElementById('wadfunViewer').classList.add('open')}
+async function shareWork(id){await load();const w=await window.wadfunStorage.getArtwork(id),src=image(w);if(!src)return;if(navigator.share){try{const b=await fetch(src).then(r=>r.blob());const f=new File([b],'Wadfun.png',{type:b.type||'image/png'});if(navigator.canShare?.({files:[f]}))return navigator.share({title:w?.name||'ผลงาน Wadfun',files:[f]});return navigator.share({title:w?.name||'ผลงาน Wadfun'})}catch(e){if(e.name!=='AbortError')console.error(e)}}}
+async function deleteWork(id){if(!confirm('ลบผลงานนี้ใช่ไหม?'))return;await load();await window.wadfunStorage.deleteArtwork(id);render()}
+async function editWork(id){await load();const w=await window.wadfunStorage.getArtwork(id);if(!w)return;editingId=String(id);closeViewer();if(typeof window.show==='function')window.show(w.mode==='color'?'color':'draw');setTimeout(()=>{const c=document.querySelector('.screen.active canvas');if(!c)return;const im=new Image();im.onload=()=>{const r=c.getBoundingClientRect(),W=Math.max(1,Math.round(r.width||c.width||im.naturalWidth)),H=Math.max(1,Math.round(r.height||c.height||im.naturalHeight));c.width=W;c.height=H;const x=c.getContext('2d');x.clearRect(0,0,W,H);x.fillStyle='#fff';x.fillRect(0,0,W,H);const k=Math.min(W/im.naturalWidth,H/im.naturalHeight),dw=im.naturalWidth*k,dh=im.naturalHeight*k;x.drawImage(im,(W-dw)/2,(H-dh)/2,dw,dh);c.dispatchEvent(new Event('wadfun-work-loaded'))};im.src=image(w)},220)}
+function hookGallery(){if(hookedGallery)return true;if(typeof window.gallery!=='function')return false;const old=window.gallery;window.gallery=async function(){try{await render()}catch(e){}return old.apply(this,arguments)};hookedGallery=true;return true}
+function boot(){document.addEventListener('click',finishClickCapture,true);let n=0;const t=setInterval(()=>{hookFinish();hookGallery();if(++n>300||hookedFinish&&hookedGallery)clearInterval(t)},100);load().then(render).catch(console.error)}
+window.wadfunOpenWork=openWork;window.wadfunShareWork=shareWork;window.wadfunDeleteWork=deleteWork;window.wadfunEditWork=editWork;window.wadfunCloseViewer=closeViewer;window.wadfunEditViewer=()=>viewerId&&editWork(viewerId);window.wadfunShareViewer=()=>viewerId&&shareWork(viewerId);window.wadfunGallery={render,saveCurrentArtwork:save,editWork,openWork,deleteWork};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
