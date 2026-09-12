@@ -1,7 +1,7 @@
-/* Wadfun Color Library Fix V14 — restore saved colors after engine initialization */
+/* Wadfun Color Library Fix V15 — restore saved colors after engine initialization + autosave loader */
 (function(){
 'use strict';
-if(window.__wadfunColorLibraryV14)return;window.__wadfunColorLibraryV14=true;
+if(window.__wadfunColorLibraryV15)return;window.__wadfunColorLibraryV15=true;
 function normalizeScreens(){const a=document.querySelector('.screen.active');if(!a)return;document.querySelectorAll('.screen').forEach(s=>s.style.removeProperty('display'))}
 const obs=new MutationObserver(()=>requestAnimationFrame(normalizeScreens));obs.observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['class']});setInterval(normalizeScreens,250);normalizeScreens();
 function keyInfo(){const st=window.wadfunColorLibraryState||{},cat=st.category||window.wadfunActiveColorTemplate?.category||'',idx=Number.isInteger(st.index)?st.index:'',item=window.wadfunColorLibraryData?.[cat]?.items?.[idx],name=item?.[0]||window.wadfunActiveColorTemplate?.name||'';return{cat,idx,key:`${cat}:${idx}:${name}`}}
@@ -11,6 +11,7 @@ async function makePaint(saved){const c=document.getElementById('colorCanvas'),{
 async function applySaved(){const saved=await findSaved();if(!saved)return false;const restore=window.wadfunColorRestoreState;if(typeof restore!=='function')return false;try{if(saved.editorState&&(saved.editorState.paint||saved.editorState.ink)){let ok=false;await new Promise(r=>{try{const z=restore(saved.editorState,()=>{ok=true;r()});if(z!==true)r()}catch(e){r()}setTimeout(r,1800)});if(ok)return true}}catch(e){}try{const paint=await makePaint(saved);if(!paint)return false;let ok=false;await new Promise(r=>{try{const z=restore({paint,ink:''},()=>{ok=true;r()});if(z!==true)r()}catch(e){r()}setTimeout(r,1800)});return ok}catch(e){console.error('[Wadfun] saved visual fallback failed',e);return false}}
 let last='',busy=false;
 async function resume(){if(!document.getElementById('color')?.classList.contains('active'))return;const st=window.wadfunColorLibraryState||{},k=`${st.category||''}:${Number.isInteger(st.index)?st.index:''}`;const c=document.getElementById('colorCanvas');if(!k||k===last||busy||!c?.width||!c?.height)return;busy=true;try{if(await applySaved())last=k}catch(e){console.error('[Wadfun] resume failed',e)}finally{busy=false}}
+function loadAutosave(){if(window.__wadfunColorAutosaveLoader)return;window.__wadfunColorAutosaveLoader=true;const s=document.createElement('script');s.src='color-autosave.js';s.onload=()=>console.log('[Wadfun] color autosave ready');s.onerror=e=>console.error('[Wadfun] color autosave load failed',e);document.head.appendChild(s)}
 /* Do not wrap the engine API: Color Engine V31 rebinds it during template setup. */
-setInterval(resume,250);
+setInterval(resume,250);setTimeout(loadAutosave,0);
 })();
