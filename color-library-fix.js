@@ -1,8 +1,8 @@
-/* Wadfun Color Library Fix V6 — repair navigation display + make saved color restore resilient */
+/* Wadfun Color Library Fix V7 — repair navigation display + harden color resume */
 (function(){
 'use strict';
-if(window.__wadfunColorLibraryV6)return;
-window.__wadfunColorLibraryV6=true;
+if(window.__wadfunColorLibraryV7)return;
+window.__wadfunColorLibraryV7=true;
 
 function normalizeScreens(){
   const active=document.querySelector('.screen.active');
@@ -16,34 +16,24 @@ setInterval(repair,250);
 repair();
 
 /*
- * Color restore can race with canvas/template initialization and responsive
- * resizing.  Keep the original restore API, but retry it after the canvas is
- * ready and once more after layout settles.  This does not alter drawing,
- * filling, undo/redo, or Start New behavior.
+ * Resume can race with canvas initialization/resizing.  Retry the same saved
+ * paint/ink layers after layout settles, then call the caller callback once.
  */
 function installRestoreGuard(){
   const fn=window.wadfunColorRestoreState;
   if(typeof fn!=='function')return false;
-  if(fn.__wadfunRestoreV6)return true;
+  if(fn.__wadfunRestoreV7)return true;
   const wrapped=function(state,done){
-    let finished=false,attempts=0,timer=null;
-    const complete=()=>{if(finished)return;finished=true;if(timer)clearTimeout(timer);if(done)done()};
-    const attempt=()=>{
-      attempts++;
-      let ok=false;
-      try{ok=!!fn(state,()=>{complete();setTimeout(()=>retry(),90);setTimeout(()=>retry(),280);})}catch(e){console.error('[Wadfun] color restore guard failed',e)}
-      if(ok)return true;
-      if(attempts<12){timer=setTimeout(attempt,80);return true}
-      complete();
-      return false
-    };
-    const retry=()=>{
-      if(!state||finished)return;
-      try{fn(state,()=>{})}catch(e){console.error('[Wadfun] color restore retry failed',e)}
-    };
-    return attempt();
+    let completed=false;
+    const run=()=>{try{fn(state,()=>{});}catch(e){console.error('[Wadfun] color restore retry failed',e)}};
+    try{fn(state,()=>{});}catch(e){console.error('[Wadfun] color restore failed',e)}
+    setTimeout(run,90);
+    setTimeout(run,280);
+    setTimeout(run,650);
+    setTimeout(()=>{if(!completed){completed=true;if(done)done()}},720);
+    return true;
   };
-  wrapped.__wadfunRestoreV6=true;
+  wrapped.__wadfunRestoreV7=true;
   window.wadfunColorRestoreState=wrapped;
   return true;
 }
