@@ -1,7 +1,7 @@
-/* Wadfun Gallery Engine V21 — unified save + reliable color autosave */
+/* Wadfun Gallery Engine V22 — color autosave before navigation */
 (function(){
 'use strict';
-const S='wadfun-storage.js';let sp=null,editingId=null,hookedFinish=false,hookedGallery=false,autoObserver=null;
+const S='wadfun-storage.js';let sp=null,editingId=null,hookedFinish=false,hookedGallery=false,autoObserver=null,hookedShow=false;
 function load(){if(window.wadfunStorage)return Promise.resolve(window.wadfunStorage);if(sp)return sp;sp=new Promise((res,rej)=>{const s=document.createElement('script');s.src=S;s.onload=()=>window.wadfunStorage?res(window.wadfunStorage):rej(Error('storage unavailable'));s.onerror=rej;document.head.appendChild(s)});return sp}
 const active=()=>document.querySelector('.screen.active')?.id||'';
 const canvas=m=>m==='color'?document.getElementById('colorCanvas'):(document.getElementById('drawCanvas')||document.querySelector('.screen.active canvas'));
@@ -11,7 +11,7 @@ function colorKey(){const st=window.wadfunColorLibraryState||{},cat=st.category|
 async function save(mode){await load();const m=mode==='color'||active()==='color'?'color':'draw',c=canvas(m);if(!c||!c.toDataURL)throw Error('canvas not found');const data=c.toDataURL('image/png');if(!data||data.length<100)throw Error('empty canvas');let old=editingId?await window.wadfunStorage.getArtwork(editingId):null;const key=m==='color'?colorKey():'';if(!old&&m==='color'&&key!==':'){const all=await window.wadfunStorage.getAllArtworks();old=all.find(x=>x.mode==='color'&&x.templateKey===key)||null}
 const rec={id:old?.id,name:m==='color'?(window.currentName||'ผลงานระบายสี'):'ผลงานวาดของฉัน',category:m==='color'?(window.wadfunActiveColorTemplate?.category||''):'',mode:m,imageData:data,thumbnail:data,templateKey:key,editorState:m==='color'?(window.wadfunColorGetState?.()||null):null,createdAt:old?.createdAt||Date.now()};
 const out=await window.wadfunStorage.saveArtwork(rec);if(!out?.id)throw Error('save failed');editingId=out.id;window.wadfunLastFinishSave=out.id;return out}
-async function saveCurrentColor(){if(active()!=='color'||!window.wadfunColorGetState)return null;try{return await save('color')}catch(e){console.error('[Wadfun] color autosave failed',e);return null}}
+async function saveCurrentColor(){if(!window.wadfunColorGetState)return null;try{return await save('color')}catch(e){console.error('[Wadfun] color autosave failed',e);return null}}
 async function finish(mode){const m=mode==='color'||mode==='draw'?mode:(active()==='color'?'color':'draw'),c=canvas(m);const outSaved=await save(m),out=document.getElementById('finishImg');if(out&&c)out.src=outSaved?.imageData||c.toDataURL('image/png');if(typeof window.show==='function')window.show('finish');return outSaved}
 function hookFinish(){if(hookedFinish)return true;if(typeof window.finishCanvas!=='function')return false;window.finishCanvas=finish;window.wadfunFinish=finish;hookedFinish=true;return true}
 function cleanHomeMenu(){const menu=document.querySelector('.home .sideMenu');if(!menu)return false;menu.querySelectorAll('.woodBtn').forEach(b=>{const keep=/แกลเลอรี/i.test((b.textContent||'').replace(/\s+/g,''));b.style.display=keep?'':'none'});return true}
@@ -26,8 +26,9 @@ async function shareWork(id){await load();const w=await window.wadfunStorage.get
 async function deleteWork(id){if(!confirm('ลบผลงานนี้ใช่ไหม?'))return;await load();await window.wadfunStorage.deleteArtwork(id);render()}
 function editWork(id){return false}
 function hookGallery(){if(hookedGallery)return true;if(typeof window.gallery!=='function')return false;const old=window.gallery;window.gallery=async function(){try{await old.apply(this,arguments)}catch(e){console.error('[Wadfun] legacy gallery failed',e)}try{await render()}catch(e){console.error('[Wadfun] gallery render failed',e)}};hookedGallery=true;return true}
-function installColorAutosave(){if(autoObserver||!document.body)return;if(!document.getElementById('color'))return;let wasColorActive=active()==='color';autoObserver=new MutationObserver(()=>{const now=active()==='color';if(wasColorActive&&!now){window.wadfunColorAutosaveReady=saveCurrentColor();window.wadfunColorAutosaveReady.finally(()=>{if(window.wadfunColorAutosaveReady===undefined)return;});}wasColorActive=now});autoObserver.observe(document.body,{subtree:true,attributes:true,attributeFilter:['class']})}
-function boot(){cleanHomeMenu();installColorAutosave();let n=0;const t=setInterval(()=>{cleanHomeMenu();hookFinish();hookGallery();installColorAutosave();if(++n>300||hookedFinish&&hookedGallery&&autoObserver)clearInterval(t)},100);load().then(render).catch(console.error)}
+function hookShow(){if(hookedShow||typeof window.show!=='function')return false;const oldShow=window.show;window.show=async function(id){if(active()==='color'&&id!=='color'){await saveCurrentColor();window.wadfunColorAutosaveReady=null}return oldShow.apply(this,arguments)};hookedShow=true;return true}
+function installColorAutosave(){if(autoObserver||!document.body)return;if(!document.getElementById('color'))return;let wasColorActive=active()==='color';autoObserver=new MutationObserver(()=>{const now=active()==='color';if(wasColorActive&&!now){window.wadfunColorAutosaveReady=saveCurrentColor()}wasColorActive=now});autoObserver.observe(document.body,{subtree:true,attributes:true,attributeFilter:['class']})}
+function boot(){cleanHomeMenu();hookShow();installColorAutosave();let n=0;const t=setInterval(()=>{cleanHomeMenu();hookFinish();hookGallery();hookShow();installColorAutosave();if(++n>300||hookedFinish&&hookedGallery&&hookedShow&&autoObserver)clearInterval(t)},100);load().then(render).catch(console.error)}
 window.wadfunFinish=finish;window.wadfunOpenWork=openWork;window.wadfunShareWork=shareWork;window.wadfunDeleteWork=deleteWork;window.wadfunEditWork=()=>false;window.wadfunCloseViewer=closeViewer;window.wadfunEditViewer=()=>false;window.wadfunShareViewer=()=>viewerId&&shareWork(viewerId);window.wadfunGallery={render,saveCurrentArtwork:save,saveCurrentColor,editWork};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
