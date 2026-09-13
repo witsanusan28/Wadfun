@@ -1,0 +1,39 @@
+name: Wadfun Pen Icon Fix
+on:
+  push:
+    paths:
+      - 'debug/pen-icon-fix.trigger'
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Patch pen icon sync
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('color-picker-reset-v2.js')
+          s=p.read_text()
+          old="""render();\ndocument.addEventListener('click',e=>{const item=e.target?.closest?.('#draw .penItem');if(!item)return;"""
+          new="""render();\nfunction renderPenIconAfterSelection(){setTimeout(render,0);setTimeout(render,80);setTimeout(render,220)}\ndocument.addEventListener('click',e=>{const item=e.target?.closest?.('#draw .penItem');if(!item)return;"""
+          if old not in s:
+              raise SystemExit('expected renderer anchor not found')
+          s=s.replace(old,new,1)
+          old2="""if(m)window.__wadfunSelectedPen=m;render()"""
+          new2="""if(m){window.__wadfunSelectedPen=m;renderPenIconAfterSelection()}"""
+          if old2 not in s:
+              raise SystemExit('expected pen click sync not found')
+          s=s.replace(old2,new2,1)
+          p.write_text(s)
+          PY
+          rm -f debug/pen-icon-fix.trigger
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add color-picker-reset-v2.js debug/pen-icon-fix.trigger .github/workflows/wadfun-pen-icon-fix.yml
+          git commit -m 'fix: sync drawing pen icon after selection'
+          git push origin main
