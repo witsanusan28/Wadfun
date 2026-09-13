@@ -39,7 +39,7 @@ clear:'<path d="M29 28h42l-4 58H33zM24 28h52M38 18h24M41 43v29M59 43v29" fill="n
 save:'<path d="M22 16h48l12 12v56H22zM34 16v27h31V16" fill="#FFD34F" stroke="#5A4A32" stroke-width="5"/><rect x="36" y="57" width="28" height="20" rx="4" fill="#55C7EE" stroke="#3B6A83" stroke-width="4"/>'};
 function make(id){const s=document.createElementNS(NS,'svg');s.setAttribute('viewBox','0 0 100 100');s.setAttribute('aria-hidden','true');s.classList.add('wadfunToolIcon');s.innerHTML=I[id]||I.pencil;return s}
 function setIcon(b,id){if(!b)return;let i=b.querySelector('i');if(!i){i=document.createElement('i');b.insertBefore(i,b.firstChild)}if(i.dataset.wadfunIcon===id)return;i.replaceChildren(make(id));i.dataset.wadfunIcon=id;b.classList.add('wadfunIconButton')}
-function penMode(){const item=document.querySelector('#draw .penItem.on');if(item){const c=[...item.classList];const m=['pencil','crayon','brush','marker','sparkle'].find(x=>c.includes(x));if(m)return m;const t=(item.textContent||'').toLowerCase();if(t.includes('ดินสอ'))return'pencil';if(t.includes('สีเทียน'))return'crayon';if(t.includes('พู่กัน'))return'brush';if(t.includes('เมจิก')||t.includes('marker')||t.includes('มาร์กเกอร์'))return'marker';if(t.includes('ประกาย'))return'sparkle'}return window.__wadfunSelectedPen||'pencil'}
+function penMode(){const g=window.__wadfunSelectedPen;if(['pencil','crayon','brush','marker','sparkle'].includes(g))return g;const item=document.querySelector('#draw .penItem.on');if(item){const c=[...item.classList];const m=['pencil','crayon','brush','marker','sparkle'].find(x=>c.includes(x));if(m)return m;const t=(item.textContent||'').toLowerCase();if(t.includes('ดินสอ'))return'pencil';if(t.includes('สีเทียน'))return'crayon';if(t.includes('พู่กัน'))return'brush';if(t.includes('เมจิก')||t.includes('marker')||t.includes('มาร์กเกอร์'))return'marker';if(t.includes('ประกาย'))return'sparkle'}return window.__wadfunSelectedPen||'pencil'}
 function find(root,label){return[...root.querySelectorAll('button')].find(b=>(b.textContent||'').includes(label))}
 function render(){const root=document.querySelector('#draw .toolbar');if(!root)return;setIcon(root.querySelector('button:first-child'),'home');setIcon(document.getElementById('penBtn'),penMode());setIcon(document.getElementById('eraserBtn'),'eraser');setIcon(find(root,'ย้อนกลับ'),'undo');setIcon(find(root,'ทำซ้ำ'),'redo');setIcon(find(root,'ล้าง'),'clear');setIcon(find(root,'เสร็จ'),'save');document.querySelectorAll('#draw .penItem').forEach(item=>{const h=item.querySelector('.penIcon');if(!h)return;const t=(item.textContent||'').toLowerCase();const id=t.includes('ดินสอ')?'pencil':t.includes('สีเทียน')?'crayon':t.includes('พู่กัน')?'brush':(t.includes('เมจิก')||t.includes('marker')||t.includes('มาร์กเกอร์'))?'marker':t.includes('ประกาย')?'sparkle':null;if(id)h.replaceChildren(make(id))})}
 const st=document.createElement('style');st.textContent='.wadfunIconButton i{width:30px;height:30px;display:grid;place-items:center;line-height:1}.wadfunToolIcon{width:30px;height:30px;display:block;overflow:visible}.wadfunIconButton.tb.on .wadfunToolIcon{filter:drop-shadow(0 0 3px #58c9f7)}.wadfunIconButton:disabled .wadfunToolIcon{filter:grayscale(1);opacity:.38}.wadfunIconButton:disabled{opacity:.62}';document.head.appendChild(st);
@@ -91,4 +91,28 @@ document.addEventListener('click',e=>{
   if(!e.target?.closest?.('#draw .penItem'))return;
   setTimeout(sync,0);setTimeout(sync,80);setTimeout(sync,250);
 },false);
+})();
+
+/* WADFUN PEN ICON DIRECT STATE V2 */
+(function(){
+'use strict';
+if(window.__wadfunPenDirectStateV2)return;
+window.__wadfunPenDirectStateV2=true;
+const modes=['pencil','crayon','brush','marker','sparkle'];
+function boot(){
+  const fn=window.choosePen;
+  if(typeof fn!=='function')return;
+  if(fn.__wadfunPenDirectV2)return;
+  const wrapped=function(id){
+    const r=fn.apply(this,arguments);
+    if(modes.includes(id)){
+      window.__wadfunSelectedPen=id;
+      requestAnimationFrame(()=>window.__wadfunRenderPenIconV5?.());
+    }
+    return r;
+  };
+  wrapped.__wadfunPenDirectV2=true;
+  window.choosePen=wrapped;
+}
+boot();setTimeout(boot,0);setTimeout(boot,100);setTimeout(boot,500);
 })();
