@@ -1,0 +1,1 @@
+Use the Wadfun production URL for QA: https://wadfun.vercel.app
