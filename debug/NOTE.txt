@@ -1,0 +1,1 @@
+Debug files are temporary QA helpers only.
