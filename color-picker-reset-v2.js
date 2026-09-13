@@ -29,4 +29,19 @@ function popupIconFor(text){const t=(text||'').toLowerCase();if(t.includes('ด�
 function wire(){const root=document.querySelector('#draw .toolbar');if(!root)return;paintHome(root.querySelector('button:first-child'));paintButton(document.getElementById('penBtn'),'pencil');paintButton(document.getElementById('eraserBtn'),'eraser');const find=t=>[...root.querySelectorAll('button')].find(b=>(b.textContent||'').includes(t));paintButton(find('ย้อนกลับ'),'undo');paintButton(find('ทำซ้ำ'),'redo');paintButton(find('ล้าง'),'clear');paintButton(find('เสร็จ'),'save');document.querySelectorAll('#draw .penItem').forEach(item=>{const id=popupIconFor(item.textContent);if(id){let holder=item.querySelector('.penIcon');if(holder){holder.replaceChildren(svg(id));holder.classList.add('wadfunPenPopupIcon')}}});}
 const s=document.createElement('style');s.id='wadfun-tool-icon-system-v1';s.textContent=`.wadfunIconButton i{width:30px;height:30px;display:grid;place-items:center;line-height:1}.wadfunToolIcon{width:30px;height:30px;display:block;overflow:visible}.wadfunPenPopupIcon .wadfunToolIcon{width:32px;height:32px}.wadfunIconButton.tb.on .wadfunToolIcon{filter:drop-shadow(0 0 3px #58c9f7)}.wadfunIconButton:disabled .wadfunToolIcon{filter:grayscale(1);opacity:.38}.wadfunIconButton:disabled{opacity:.62}.wadfunIconButton{transition:filter .15s ease,opacity .15s ease,transform .1s ease}`;document.head.appendChild(s);wire();setInterval(wire,250);
 })();
+/* WADFUN DRAW UNDO/REDO UI STATE V1 — UI-only state reflection; does not alter drawing engine */
+(function(){
+'use strict';
+let undoCount=0,redoCount=0,installed=false;
+function buttons(){const root=document.querySelector('#draw .toolbar');if(!root)return{};const find=t=>[...root.querySelectorAll('button')].find(b=>(b.textContent||'').includes(t));return{undo:find('ย้อนกลับ'),redo:find('ทำซ้ำ'),clear:find('ล้าง')};}
+function render(){const b=buttons();if(b.undo){b.undo.disabled=undoCount<=0;b.undo.setAttribute('aria-disabled',String(b.undo.disabled))}if(b.redo){b.redo.disabled=redoCount<=0;b.redo.setAttribute('aria-disabled',String(b.redo.disabled))}}
+function hasInk(c){try{const x=c.getContext('2d',{willReadFrequently:true});if(!x)return false;const d=x.getImageData(0,0,c.width,c.height).data;for(let i=3;i<d.length;i+=4){if(d[i]>0){const r=d[i-3],g=d[i-2],b=d[i-1];if(r<250||g<250||b<250)return true}}}catch(e){}return false}
+function resetFromCanvas(){const c=document.getElementById('drawCanvas');if(c){undoCount=hasInk(c)?1:0;redoCount=0}else{undoCount=0;redoCount=0}render()}
+function install(){if(installed)return;const c=document.getElementById('drawCanvas');if(!c)return;installed=true;
+['pointerdown','touchstart'].forEach(type=>c.addEventListener(type,e=>{if(type==='touchstart'&&e.touches&&e.touches.length!==1)return;if(e.defaultPrevented&&type==='pointerdown')return;undoCount=Math.max(0,undoCount)+1;redoCount=0;render()},{passive:true}));
+document.addEventListener('click',e=>{const b=e.target?.closest?.('#draw .toolbar button');if(!b)return;const bs=buttons();if(b===bs.undo){if(undoCount>0){undoCount--;redoCount++;render()}}else if(b===bs.redo){if(redoCount>0){redoCount--;undoCount++;render()}}else if(b===bs.clear){undoCount=0;redoCount=0;render()}},true);
+resetFromCanvas();
+}
+install();setInterval(()=>{install();render()},250);
+})();
 })();
