@@ -1,0 +1,69 @@
+name: Wadfun Pen Label Sync
+on:
+  push:
+    paths:
+      - 'debug/pen-label-sync.trigger'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch pen toolbar label sync
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('color-picker-reset-v2.js')
+          s=p.read_text()
+          marker='/* WADFUN PEN LABEL SYNC V1 */'
+          if marker not in s:
+              s += r'''
+/* WADFUN PEN LABEL SYNC V1 */
+(function(){
+'use strict';
+if(window.__wadfunPenLabelSyncV1)return;
+window.__wadfunPenLabelSyncV1=true;
+const modes={pencil:'ดินสอ',crayon:'สีเทียน',brush:'พู่กัน',marker:'เมจิก',sparkle:'ประกาย'};
+function sync(){
+  const b=document.getElementById('penBtn');
+  if(!b)return;
+  const id=window.__wadfunSelectedPen;
+  if(!modes[id])return;
+  const spans=b.querySelectorAll('span');
+  const label=spans.length?spans[spans.length-1]:null;
+  if(label)label.textContent=modes[id];
+}
+function wrap(){
+  const fn=window.choosePen;
+  if(typeof fn!=='function')return false;
+  if(fn.__wadfunPenLabelWrapped)return true;
+  const w=function(id){
+    const r=fn.apply(this,arguments);
+    if(modes[id])window.__wadfunSelectedPen=id;
+    requestAnimationFrame(sync);
+    setTimeout(sync,0);
+    setTimeout(sync,80);
+    return r;
+  };
+  w.__wadfunPenLabelWrapped=true;
+  window.choosePen=w;
+  return true;
+}
+function boot(){wrap();sync()}
+boot();setTimeout(boot,0);setTimeout(boot,100);setTimeout(boot,500);
+window.addEventListener('wadfun:draw-ready',boot);
+window.__wadfunRenderPenLabelV1=sync;
+})();
+'''
+          p.write_text(s)
+          Path('debug/pen-label-sync.trigger').unlink(missing_ok=True)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add color-picker-reset-v2.js debug/pen-label-sync.trigger
+          git commit -m 'fix: sync pen toolbar label with selected mode'
+          git push
