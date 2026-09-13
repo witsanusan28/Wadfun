@@ -19,16 +19,13 @@ jobs:
           from pathlib import Path
           p=Path('color-picker-reset-v2.js')
           s=p.read_text()
-          old="""render();\ndocument.addEventListener('click',e=>{const item=e.target?.closest?.('#draw .penItem');if(!item)return;"""
-          new="""render();\nfunction renderPenIconAfterSelection(){setTimeout(render,0);setTimeout(render,80);setTimeout(render,220)}\ndocument.addEventListener('click',e=>{const item=e.target?.closest?.('#draw .penItem');if(!item)return;"""
-          if old not in s:
-              raise SystemExit('expected renderer anchor not found')
-          s=s.replace(old,new,1)
-          old2="""if(m)window.__wadfunSelectedPen=m;render()"""
-          new2="""if(m){window.__wadfunSelectedPen=m;renderPenIconAfterSelection()}"""
-          if old2 not in s:
-              raise SystemExit('expected pen click sync not found')
-          s=s.replace(old2,new2,1)
+          anchor="render();\ndocument.addEventListener('click',e=>{const item=e.target?.closest?.('#draw .penItem');if(!item)return;"
+          repl="render();\nwindow.__wadfunRenderPenIconV5=render;\ndocument.addEventListener('click',e=>{const item=e.target?.closest?.('#draw .penItem');if(!item)return;"
+          if anchor not in s:
+              raise SystemExit('renderer click anchor not found')
+          s=s.replace(anchor,repl,1)
+          if 'WADFUN PEN ICON POST-CLICK SYNC V1' not in s:
+              s += "\n/* WADFUN PEN ICON POST-CLICK SYNC V1 */\n(function(){'use strict';document.addEventListener('click',e=>{if(!e.target?.closest?.('#draw .penItem'))return;setTimeout(()=>window.__wadfunRenderPenIconV5?.(),0);setTimeout(()=>window.__wadfunRenderPenIconV5?.(),120);setTimeout(()=>window.__wadfunRenderPenIconV5?.(),300)},false)})();\n"
           p.write_text(s)
           PY
           rm -f debug/pen-icon-fix.trigger
