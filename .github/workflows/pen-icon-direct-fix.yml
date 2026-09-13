@@ -1,0 +1,38 @@
+name: Wadfun Pen Icon Direct Fix
+on:
+  push:
+    paths:
+      - 'debug/pen-icon-direct-fix.trigger'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch direct chooser state bridge
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('color-picker-reset-v2.js')
+          s=p.read_text()
+          if 'WADFUN PEN ICON DIRECT STATE V2' in s:
+              raise SystemExit('already patched')
+          old="function penMode(){const item=document.querySelector('#draw .penItem.on');"
+          new="function penMode(){const g=window.__wadfunSelectedPen;if(['pencil','crayon','brush','marker','sparkle'].includes(g))return g;const item=document.querySelector('#draw .penItem.on');"
+          if old not in s:
+              raise SystemExit('penMode marker not found')
+          s=s.replace(old,new,1)
+          block="""\n/* WADFUN PEN ICON DIRECT STATE V2 */\n(function(){\n'use strict';\nif(window.__wadfunPenDirectStateV2)return;\nwindow.__wadfunPenDirectStateV2=true;\nconst modes=['pencil','crayon','brush','marker','sparkle'];\nfunction boot(){\n  const fn=window.choosePen;\n  if(typeof fn!=='function')return;\n  if(fn.__wadfunPenDirectV2)return;\n  const wrapped=function(id){\n    const r=fn.apply(this,arguments);\n    if(modes.includes(id)){\n      window.__wadfunSelectedPen=id;\n      requestAnimationFrame(()=>window.__wadfunRenderPenIconV5?.());\n    }\n    return r;\n  };\n  wrapped.__wadfunPenDirectV2=true;\n  window.choosePen=wrapped;\n}\nboot();setTimeout(boot,0);setTimeout(boot,100);setTimeout(boot,500);\n})();\n"""
+          s += block
+          p.write_text(s)
+          Path('debug/pen-icon-direct-fix.trigger').unlink(missing_ok=True)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add color-picker-reset-v2.js debug/pen-icon-direct-fix.trigger
+          git commit -m 'fix: bind pen toolbar icon to actual selected mode'
+          git push
