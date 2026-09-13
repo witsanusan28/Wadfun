@@ -1,0 +1,71 @@
+name: Wadfun Pen Label Direct Fix
+on:
+  push:
+    paths:
+      - 'debug/pen-label-direct-fix.trigger'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch label state bridge
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('color-picker-reset-v2.js')
+          s=p.read_text()
+          marker='/* WADFUN PEN LABEL DIRECT FIX V1 */'
+          if marker not in s:
+              s += r'''
+/* WADFUN PEN LABEL DIRECT FIX V1 */
+(function(){
+'use strict';
+if(window.__wadfunPenLabelDirectFixV1)return;
+window.__wadfunPenLabelDirectFixV1=true;
+const modes={pencil:'ดินสอ',crayon:'สีเทียน',brush:'พู่กัน',marker:'เมจิก',sparkle:'ประกาย'};
+const valid=id=>Object.prototype.hasOwnProperty.call(modes,id);
+function paint(){
+  const b=document.getElementById('penBtn');
+  if(!b)return;
+  const id=window.__wadfunSelectedPen;
+  if(!valid(id))return;
+  const spans=b.querySelectorAll('span');
+  if(spans.length)spans[spans.length-1].textContent=modes[id];
+  b.setAttribute('aria-label',modes[id]);
+}
+function wrap(){
+  const fn=window.choosePen;
+  if(typeof fn!=='function')return false;
+  if(fn.__wadfunPenLabelDirectWrapped)return true;
+  const w=function(id){
+    const r=fn.apply(this,arguments);
+    if(valid(id))window.__wadfunSelectedPen=id;
+    requestAnimationFrame(paint);
+    setTimeout(paint,0);
+    setTimeout(paint,60);
+    return r;
+  };
+  w.__wadfunPenLabelDirectWrapped=true;
+  window.choosePen=w;
+  return true;
+}
+function boot(){wrap();paint()}
+boot();
+[50,150,300,600,1000,1600].forEach(t=>setTimeout(boot,t));
+window.addEventListener('wadfun:draw-ready',boot);
+window.__wadfunRenderPenLabelDirectFix=paint;
+})();
+'''
+          p.write_text(s)
+          Path('debug/pen-label-direct-fix.trigger').unlink(missing_ok=True)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add color-picker-reset-v2.js debug/pen-label-direct-fix.trigger
+          git commit -m 'fix: bind pen toolbar label to selected mode'
+          git push
