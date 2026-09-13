@@ -1,0 +1,73 @@
+name: Wadfun Pen Single Owner
+on:
+  push:
+    paths:
+      - 'debug/pen-single-owner.trigger'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Make choosePen single owner
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text()
+          old='<button class="tb on" id="penBtn" onclick="togglePenPopup()"><i>✏️</i><span>ปากกา</span></button>'
+          new='<button class="tb on" id="penBtn" onclick="togglePenPopup()"><i id="penBtnIcon" aria-hidden="true"></i><span id="penBtnLabel"></span></button>'
+          if old not in s:
+              raise SystemExit('penBtn HTML target not found')
+          s=s.replace(old,new,1)
+          old_fn="""function choosePen(id){
+  drawMode=id;
+  document.getElementById('penBtn').classList.add('on');
+  document.getElementById('eraserBtn').classList.remove('on');
+  document.getElementById('sizeLabel').textContent='ขนาดเส้น';
+  const el=document.getElementById('drawSize');
+  el.min=2;
+  el.max=40;
+  el.value=drawSize;
+  document.getElementById('drawSizeValue').textContent=drawSize+' px';
+  renderPens();
+  closePopups()
+}"""
+          new_fn="""function choosePen(id){
+  const labels={pencil:'ดินสอ',crayon:'สีเทียน',brush:'พู่กัน',marker:'เมจิก',sparkle:'ประกาย'};
+  if(!labels[id])return;
+  drawMode=id;
+  window.__wadfunSelectedPen=id;
+  const btn=document.getElementById('penBtn');
+  if(btn){
+    btn.classList.add('on');
+    document.getElementById('eraserBtn').classList.remove('on');
+    const label=btn.querySelector('#penBtnLabel');
+    if(label)label.textContent=labels[id];
+  }
+  document.getElementById('sizeLabel').textContent='ขนาดเส้น';
+  const el=document.getElementById('drawSize');
+  el.min=2;
+  el.max=40;
+  el.value=drawSize;
+  document.getElementById('drawSizeValue').textContent=drawSize+' px';
+  renderPens();
+  window.__wadfunRenderToolIconsV5?.();
+  window.__wadfunRenderToolIcons?.();
+  closePopups()
+}"""
+          if old_fn not in s:
+              raise SystemExit('choosePen target not found')
+          s=s.replace(old_fn,new_fn,1)
+          p.write_text(s)
+          Path('debug/pen-single-owner.trigger').unlink(missing_ok=True)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html debug/pen-single-owner.trigger .github/workflows/pen-single-owner.yml
+          git commit -m 'fix: make choosePen single owner for pen button state'
+          git push
