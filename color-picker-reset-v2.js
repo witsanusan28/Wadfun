@@ -44,6 +44,7 @@ function find(root,label){return[...root.querySelectorAll('button')].find(b=>(b.
 function render(){const root=document.querySelector('#draw .toolbar');if(!root)return;setIcon(root.querySelector('button:first-child'),'home');setIcon(document.getElementById('penBtn'),penMode());setIcon(document.getElementById('eraserBtn'),'eraser');setIcon(find(root,'ย้อนกลับ'),'undo');setIcon(find(root,'ทำซ้ำ'),'redo');setIcon(find(root,'ล้าง'),'clear');setIcon(find(root,'เสร็จ'),'save');document.querySelectorAll('#draw .penItem').forEach(item=>{const h=item.querySelector('.penIcon');if(!h)return;const t=(item.textContent||'').toLowerCase();const id=t.includes('ดินสอ')?'pencil':t.includes('สีเทียน')?'crayon':t.includes('พู่กัน')?'brush':(t.includes('เมจิก')||t.includes('marker')||t.includes('มาร์กเกอร์'))?'marker':t.includes('ประกาย')?'sparkle':null;if(id)h.replaceChildren(make(id))})}
 const st=document.createElement('style');st.textContent='.wadfunIconButton i{width:30px;height:30px;display:grid;place-items:center;line-height:1}.wadfunToolIcon{width:30px;height:30px;display:block;overflow:visible}.wadfunIconButton.tb.on .wadfunToolIcon{filter:drop-shadow(0 0 3px #58c9f7)}.wadfunIconButton:disabled .wadfunToolIcon{filter:grayscale(1);opacity:.38}.wadfunIconButton:disabled{opacity:.62}';document.head.appendChild(st);
 render();
+window.__wadfunRenderPenIconV5=render;
 document.addEventListener('click',e=>{const item=e.target?.closest?.('#draw .penItem');if(!item)return;const c=[...item.classList];const m=['pencil','crayon','brush','marker','sparkle'].find(x=>c.includes(x));if(m)window.__wadfunSelectedPen=m;setTimeout(render,0)},true);
 window.addEventListener('wadfun:draw-ready',render);
 window.wadfunRenderToolIcons=render;
@@ -75,3 +76,5 @@ resetFromCanvas();
 install();setInterval(()=>{install();render()},250);
 })();
 })();
+/* WADFUN PEN ICON POST-CLICK SYNC V1 */
+(function(){'use strict';document.addEventListener('click',e=>{if(!e.target?.closest?.('#draw .penItem'))return;setTimeout(()=>window.__wadfunRenderPenIconV5?.(),0);setTimeout(()=>window.__wadfunRenderPenIconV5?.(),120);setTimeout(()=>window.__wadfunRenderPenIconV5?.(),300)},false)})();
