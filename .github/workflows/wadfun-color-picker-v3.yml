@@ -30,9 +30,56 @@ jobs:
               s=s.replace('</head>',css+'</head>')
           p.write_text(s,encoding='utf-8')
           PY
+      - name: Patch pen toolbar state
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('color-picker-reset-v2.js')
+          s=p.read_text(encoding='utf-8')
+          marker='/* WADFUN PEN STATE LABEL BRIDGE V3 */'
+          if marker not in s:
+              s += r'''
+/* WADFUN PEN STATE LABEL BRIDGE V3 */
+(function(){
+'use strict';
+if(window.__wadfunPenStateLabelBridgeV3)return;
+window.__wadfunPenStateLabelBridgeV3=true;
+const labels={pencil:'ดินสอ',crayon:'สีเทียน',brush:'พู่กัน',marker:'เมจิก',sparkle:'ประกาย'};
+const valid=id=>Object.prototype.hasOwnProperty.call(labels,id);
+function paint(id){
+  if(!valid(id))return;
+  window.__wadfunSelectedPen=id;
+  const b=document.getElementById('penBtn');
+  if(b){const spans=b.querySelectorAll('span');if(spans.length)spans[spans.length-1].textContent=labels[id];b.setAttribute('aria-label',labels[id]);}
+  window.__wadfunRenderPenIconV5?.();
+}
+function wrap(){
+  const fn=window.choosePen;
+  if(typeof fn!=='function')return false;
+  if(fn.__wadfunPenStateLabelWrappedV3)return true;
+  const w=function(id){const r=fn.apply(this,arguments);if(valid(id)){try{localStorage.setItem('wadfun.drawMode.v3',id)}catch(e){}paint(id)}return r};
+  w.__wadfunPenStateLabelWrappedV3=true;
+  window.choosePen=w;
+  return true;
+}
+function boot(){
+  if(!window.choosePen)return false;
+  wrap();
+  let saved='';try{saved=localStorage.getItem('wadfun.drawMode.v3')||''}catch(e){}
+  if(valid(saved)){try{window.choosePen(saved)}catch(e){paint(saved)}}
+  else {const item=document.querySelector('#draw .penItem.on');const id=item&&Object.keys(labels).find(x=>item.classList.contains(x));if(valid(id))paint(id)}
+  return true;
+}
+boot();
+[50,150,300,600,1000,1600].forEach(t=>setTimeout(boot,t));
+window.addEventListener('wadfun:draw-ready',boot);
+})();
+'''
+          p.write_text(s,encoding='utf-8')
+          PY
       - name: Commit patch
         run: |
           git config user.name 'Wadfun Bot'
           git config user.email 'actions@github.com'
-          git add index.html
-          if git diff --cached --quiet; then echo 'No patch needed'; else git commit -m 'Add visible color picker selection markers'; git push; fi
+          git add index.html color-picker-reset-v2.js
+          if git diff --cached --quiet; then echo 'No patch needed'; else git commit -m 'fix: bind pen state label'; git push; fi
