@@ -2,7 +2,7 @@ name: Wadfun Pen Label Direct Fix
 on:
   push:
     paths:
-      - 'debug/pen-label-direct-fix.trigger'
+      - 'qa/pen-label-direct-fix.txt'
 permissions:
   contents: write
 jobs:
@@ -62,10 +62,10 @@ window.__wadfunRenderPenLabelDirectFix=paint;
 })();
 '''
           p.write_text(s)
-          Path('debug/pen-label-direct-fix.trigger').unlink(missing_ok=True)
+          Path('qa/pen-label-direct-fix.txt').unlink(missing_ok=True)
           PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add color-picker-reset-v2.js debug/pen-label-direct-fix.trigger
+          git add color-picker-reset-v2.js qa/pen-label-direct-fix.txt
           git commit -m 'fix: bind pen toolbar label to selected mode'
           git push
