@@ -2,7 +2,7 @@ name: Wadfun Pen Label Sync
 on:
   push:
     paths:
-      - 'debug/pen-label-sync.trigger'
+      - 'qa/pen-label-sync-run.txt'
 permissions:
   contents: write
 jobs:
@@ -60,10 +60,10 @@ window.__wadfunRenderPenLabelV1=sync;
 })();
 '''
           p.write_text(s)
-          Path('debug/pen-label-sync.trigger').unlink(missing_ok=True)
+          Path('qa/pen-label-sync-run.txt').unlink(missing_ok=True)
           PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add color-picker-reset-v2.js debug/pen-label-sync.trigger
+          git add color-picker-reset-v2.js qa/pen-label-sync-run.txt
           git commit -m 'fix: sync pen toolbar label with selected mode'
           git push
