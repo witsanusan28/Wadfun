@@ -1,7 +1,8 @@
 name: Wadfun Pen Label Direct Fix
 on:
   push:
-    branches: [main]
+    paths:
+      - 'debug/pen-label-direct-fix.trigger'
 permissions:
   contents: write
 jobs:
@@ -11,62 +12,73 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Patch label state bridge
+      - name: Patch pen state and label
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p=Path('color-picker-reset-v2.js')
           s=p.read_text()
-          marker='/* WADFUN PEN LABEL DIRECT FIX V1 */'
+          marker='/* WADFUN PEN STATE LABEL BRIDGE V2 */'
           if marker not in s:
               s += r'''
-/* WADFUN PEN LABEL DIRECT FIX V1 */
+/* WADFUN PEN STATE LABEL BRIDGE V2 */
 (function(){
 'use strict';
-if(window.__wadfunPenLabelDirectFixV1)return;
-window.__wadfunPenLabelDirectFixV1=true;
-const modes={pencil:'ดินสอ',crayon:'สีเทียน',brush:'พู่กัน',marker:'เมจิก',sparkle:'ประกาย'};
-const valid=id=>Object.prototype.hasOwnProperty.call(modes,id);
-function paint(){
-  const b=document.getElementById('penBtn');
-  if(!b)return;
-  const id=window.__wadfunSelectedPen;
+if(window.__wadfunPenStateLabelBridgeV2)return;
+window.__wadfunPenStateLabelBridgeV2=true;
+const labels={pencil:'ดินสอ',crayon:'สีเทียน',brush:'พู่กัน',marker:'เมจิก',sparkle:'ประกาย'};
+const modes=Object.keys(labels);
+const valid=id=>modes.includes(id);
+function ui(id){
   if(!valid(id))return;
-  const spans=b.querySelectorAll('span');
-  if(spans.length)spans[spans.length-1].textContent=modes[id];
-  b.setAttribute('aria-label',modes[id]);
+  window.__wadfunSelectedPen=id;
+  const b=document.getElementById('penBtn');
+  if(b){
+    const spans=b.querySelectorAll('span');
+    if(spans.length)spans[spans.length-1].textContent=labels[id];
+    b.setAttribute('aria-label',labels[id]);
+  }
+  window.__wadfunRenderPenIconV5?.();
 }
 function wrap(){
   const fn=window.choosePen;
   if(typeof fn!=='function')return false;
-  if(fn.__wadfunPenLabelDirectWrapped)return true;
+  if(fn.__wadfunPenStateLabelWrapped)return true;
   const w=function(id){
     const r=fn.apply(this,arguments);
-    if(valid(id))window.__wadfunSelectedPen=id;
-    requestAnimationFrame(paint);
-    setTimeout(paint,0);
-    setTimeout(paint,60);
+    if(valid(id)){
+      try{localStorage.setItem('wadfun.drawMode.v2',id)}catch(e){}
+      ui(id);
+    }
     return r;
   };
-  w.__wadfunPenLabelDirectWrapped=true;
+  w.__wadfunPenStateLabelWrapped=true;
   window.choosePen=w;
   return true;
 }
-function boot(){wrap();paint()}
+function restore(){
+  if(!wrap())return;
+  let id='';try{id=localStorage.getItem('wadfun.drawMode.v2')||''}catch(e){}
+  if(valid(id)){
+    try{window.choosePen(id)}catch(e){ui(id)}
+  }else{
+    const item=document.querySelector('#draw .penItem.on');
+    const id2=item&&modes.find(x=>item.classList.contains(x));
+    if(valid(id2))ui(id2);
+  }
+}
+function boot(){wrap();restore()}
 boot();
 [50,150,300,600,1000,1600].forEach(t=>setTimeout(boot,t));
 window.addEventListener('wadfun:draw-ready',boot);
-window.__wadfunRenderPenLabelDirectFix=paint;
 })();
 '''
           p.write_text(s)
+          Path('debug/pen-label-direct-fix.trigger').unlink(missing_ok=True)
           PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          if grep -q 'WADFUN PEN LABEL DIRECT FIX V1' color-picker-reset-v2.js; then
-            git rm -f .github/workflows/pen-label-direct-fix.yml qa/pen-label-direct-fix.txt 2>/dev/null || true
-            git add color-picker-reset-v2.js
-            git commit -m 'fix: bind pen toolbar label to selected mode' || true
-            git push
-          fi
+          git add color-picker-reset-v2.js debug/pen-label-direct-fix.trigger
+          git commit -m 'fix: keep pen label and mode in sync'
+          git push
