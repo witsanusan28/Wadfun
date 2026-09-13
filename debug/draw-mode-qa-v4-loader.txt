@@ -1,0 +1,5 @@
+Load the QA script from the browser console while on Wadfun Drawing page:
+
+const s=document.createElement('script');s.src='/debug/draw-mode-qa-v4.js';document.head.appendChild(s);
+
+Then choose each Popup tool and draw one stroke: pencil, crayon, brush, marker, sparkle. Check the final WADFUN ENGINE TRACE summary in Console.
