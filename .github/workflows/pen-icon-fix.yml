@@ -1,0 +1,50 @@
+name: Wadfun Pen Icon Fix
+on:
+  push:
+    paths:
+      - 'debug/pen-icon-fix.trigger'
+jobs:
+  patch:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch post-click pen sync
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('color-picker-reset-v2.js')
+          s=p.read_text()
+          marker="/* WADFUN PEN ICON POST-CLICK SYNC V1 */"
+          if marker in s:
+              s=s[:s.index(marker)]
+          block=r'''/* WADFUN PEN ICON POST-CLICK SYNC V2 — sync after choosePen inline handler */
+          (function(){'use strict';
+          function sync(){
+            const item=document.querySelector('#draw .penItem.on');
+            if(!item)return;
+            const c=[...item.classList];
+            const m=['pencil','crayon','brush','marker','sparkle'].find(x=>c.includes(x));
+            if(m)window.__wadfunSelectedPen=m;
+            window.__wadfunRenderPenIconV5?.();
+          }
+          document.addEventListener('click',e=>{
+            if(!e.target?.closest?.('#draw .penItem'))return;
+            setTimeout(sync,0);setTimeout(sync,80);setTimeout(sync,250);
+          },false);
+          })();
+          '''
+          p.write_text(s+'\n'+block)
+          Path('debug/pen-icon-fix.trigger').unlink(missing_ok=True)
+      - name: Commit
+        run: |
+          git config user.name 'wadfun-bot'
+          git config user.email 'wadfun-bot@users.noreply.github.com'
+          git add color-picker-reset-v2.js debug/pen-icon-fix.trigger
+          git diff --cached --check
+          git commit -m 'fix: sync pen toolbar icon after selection'
+          git push
