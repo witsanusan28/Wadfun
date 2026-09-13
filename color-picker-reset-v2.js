@@ -76,5 +76,19 @@ resetFromCanvas();
 install();setInterval(()=>{install();render()},250);
 })();
 })();
-/* WADFUN PEN ICON POST-CLICK SYNC V1 */
-(function(){'use strict';document.addEventListener('click',e=>{if(!e.target?.closest?.('#draw .penItem'))return;setTimeout(()=>window.__wadfunRenderPenIconV5?.(),0);setTimeout(()=>window.__wadfunRenderPenIconV5?.(),120);setTimeout(()=>window.__wadfunRenderPenIconV5?.(),300)},false)})();
+
+/* WADFUN PEN ICON POST-CLICK SYNC V2 — sync after choosePen inline handler */
+(function(){'use strict';
+function sync(){
+  const item=document.querySelector('#draw .penItem.on');
+  if(!item)return;
+  const c=[...item.classList];
+  const m=['pencil','crayon','brush','marker','sparkle'].find(x=>c.includes(x));
+  if(m)window.__wadfunSelectedPen=m;
+  window.__wadfunRenderPenIconV5?.();
+}
+document.addEventListener('click',e=>{
+  if(!e.target?.closest?.('#draw .penItem'))return;
+  setTimeout(sync,0);setTimeout(sync,80);setTimeout(sync,250);
+},false);
+})();
