@@ -20,56 +20,26 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
-          s=s.replace('<button class="tb on" id="penBtn" onclick="togglePenPopup()"><i>✏️</i><span>ปากกา</span></button>', '<button class="tb on" id="penBtn" onclick="togglePenPopup()"><i id="penBtnIcon" aria-hidden="true"></i><span id="penBtnLabel"></span></button>', 1)
-
-          old="""function choosePen(id){
-  drawMode=id;
-  document.getElementById('penBtn').classList.add('on');
-  document.getElementById('eraserBtn').classList.remove('on');
-  document.getElementById('sizeLabel').textContent='ขนาดเส้น';
-  const el=document.getElementById('drawSize');
-  el.min=2;
-  el.max=40;
-  el.value=drawSize;
-  document.getElementById('drawSizeValue').textContent=drawSize+' px';
-  renderPens();
-  closePopups()
-}"""
-          new="""function choosePen(id){
-  const penLabels={pencil:'ดินสอ',crayon:'สีเทียน',brush:'พู่กัน',marker:'เมจิก',sparkle:'ประกาย'};
-  if(!Object.prototype.hasOwnProperty.call(penLabels,id))return;
-  drawMode=id;
-  window.__wadfunSelectedPen=id;
-  const btn=document.getElementById('penBtn');
-  if(btn){
-    btn.classList.add('on');
-    const label=document.getElementById('penBtnLabel')||btn.querySelector('span');
-    if(label)label.textContent=penLabels[id];
-    btn.setAttribute('aria-label',penLabels[id]);
-  }
-  document.getElementById('eraserBtn').classList.remove('on');
-  document.getElementById('sizeLabel').textContent='ขนาดเส้น';
-  const el=document.getElementById('drawSize');
-  el.min=2;
-  el.max=40;
-  el.value=drawSize;
-  document.getElementById('drawSizeValue').textContent=drawSize+' px';
-  renderPens();
-  window.__wadfunRenderPenIconV5?.();
-  closePopups()
-}"""
-          if old not in s:
-              raise SystemExit('choosePen baseline not found')
-          s=s.replace(old,new,1)
-          p.write_text(s,encoding='utf-8')
+          old='<button class="tb on" id="penBtn" onclick="togglePenPopup()"><i>✏️</i><span>ปากกา</span></button>'
+          new='<button class="tb on" id="penBtn" onclick="togglePenPopup()"><i id="penBtnIcon" aria-hidden="true"></i><span id="penBtnLabel"></span></button>'
+          if old in s:
+              s=s.replace(old,new,1)
+          pattern=r"function choosePen\(id\)\{.*?\}\s*function setDrawTool\(mode\)\{"
+          replacement="""function choosePen(id){const penLabels={pencil:'ดินสอ',crayon:'สีเทียน',brush:'พู่กัน',marker:'เมจิก',sparkle:'ประกาย'};if(!Object.prototype.hasOwnProperty.call(penLabels,id))return;drawMode=id;window.__wadfunSelectedPen=id;const btn=document.getElementById('penBtn');if(btn){btn.classList.add('on');const label=document.getElementById('penBtnLabel')||btn.querySelector('span');if(label)label.textContent=penLabels[id];btn.setAttribute('aria-label',penLabels[id])}document.getElementById('eraserBtn').classList.remove('on');document.getElementById('sizeLabel').textContent='ขนาดเส้น';const el=document.getElementById('drawSize');el.min=2;el.max=40;el.value=drawSize;document.getElementById('drawSizeValue').textContent=drawSize+' px';renderPens();window.__wadfunRenderPenIconV5?.();closePopups()}\nfunction setDrawTool(mode){"""
+          s2,n=re.subn(pattern,replacement,s,count=1,flags=re.S)
+          if n!=1:
+              raise SystemExit('minified choosePen not found')
+          p.write_text(s2,encoding='utf-8')
           PY
 
           grep -q '<span>ปากกา</span>' index.html && { echo 'hard-coded label remains'; exit 1; } || true
           grep -q 'window.__wadfunSelectedPen=id;' index.html
           grep -q 'window.__wadfunRenderPenIconV5?.();' index.html
+          grep -q 'id="penBtnLabel"' index.html
 
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
