@@ -26,6 +26,7 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add assets/home-master.jpg assets/home-master.webp
-          git diff --cached --quiet || git commit -m 'chore: refresh Wadfun Home Master artwork'
+          git add -A assets/home-master.jpg assets/home-master.webp
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'chore: refresh Wadfun Home Master artwork'
           git push
