@@ -1,0 +1,24 @@
+name: Fetch Wadfun Master Home
+on:
+  push:
+    paths-ignore:
+      - 'assets/home-master.webp'
+permissions:
+  contents: write
+jobs:
+  fetch-master:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download exact Master artwork
+        run: |
+          mkdir -p assets
+          curl -L --fail --retry 3 -o assets/home-master.webp 'https://media.canva.com/v2/document-image/hash:-1654545450/height:457/id:DAHVL0C-CeQ/type:B/width:436?brand=BAEUb42p6No&csig=AAAAAAAAAAAAAAAAAAAAAIWX11w8X0sFwH1VXxQcWFDs2a3x4sMXmkhCzBijzARt&disableexport=T&exp=1789403096&fallback=https%3A%2F%2Fs3.amazonaws.com%2Fdocument-export.canva.com%2FC-CeQ%2FDAHVL0C-CeQ%2F2%2Fthumbnail%2F0001.png%3FX-Amz-Algorithm%3DAWS4-HMAC-SHA256%26X-Amz-Credential%3DAKIAQYCGKMUH4GDRW44L%252F20260914%252Fus-east-1%252Fs3%252Faws4_request%26X-Amz-Date%3D20260914T122201Z%26X-Amz-Expires%3D17275%26X-Amz-Signature%3D5056c6c32c2b60b45d65ada7a7d4d25fffbb4243c94376775b505bcc3930ad5f%26X-Amz-SignedHeaders%3Dhost%26response-expires%3DMon%252C%252014%2520Sep%25202026%252017%253A09%253A56%2520GMT&osig=AAAAAAAAAAAAAAAAAAAAADHUoZFh93AB5bwATYtsONSAbsj6K6hgAH9G9Let_Eby&page=1&signed=brand%2Cdisableexport%2Cfallback%2Cpage%2Cversion&signer=document-rpc&version=2'
+          file assets/home-master.webp
+      - name: Commit artwork
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/home-master.webp
+          git diff --cached --quiet || git commit -m 'chore: add Wadfun Home Master artwork'
+          git push
