@@ -1,7 +1,7 @@
-/* Wadfun UI Icon System V1 — presentation-only. */
+/* Wadfun UI Icon System V2 — presentation-only. */
 (function(){
 'use strict';
-if(window.__wadfunUIIconsV1)return;window.__wadfunUIIconsV1=true;
+if(window.__wadfunUIIconsV2)return;window.__wadfunUIIconsV2=true;
 const N='http://www.w3.org/2000/svg';
 const P={
 globe:'<circle cx="50" cy="50" r="34" fill="#63C8F2" stroke="#245B78" stroke-width="6"/><path d="M16 50h68M50 16c11 10 15 21 15 34s-4 24-15 34M50 16C39 26 35 37 35 50s4 24 15 34" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/>',
@@ -26,15 +26,17 @@ shield:'<path d="M50 13l29 10v25c0 20-12 31-29 39-17-8-29-19-29-39V23z" fill="#6
 info:'<circle cx="50" cy="50" r="35" fill="#63C8F2" stroke="#245B78" stroke-width="5"/><path d="M50 44v25M50 31v3" stroke="#fff" stroke-width="8" stroke-linecap="round"/>',
 zoom:'<circle cx="43" cy="43" r="23" fill="#fff" stroke="#245B78" stroke-width="6"/><path d="M60 60l20 20M43 30v26M30 43h26" stroke="#63C8F2" stroke-width="6" stroke-linecap="round"/>',
 palette:'<path d="M50 17c-20 0-36 14-36 32 0 18 15 31 33 31h9c7 0 10-8 5-13-4-4-1-9 5-9h7c8 0 13-5 13-12 0-16-16-29-36-29z" fill="#FFB7D1" stroke="#704D6D" stroke-width="5"/><circle cx="31" cy="44" r="5" fill="#FF5F79"/><circle cx="45" cy="33" r="5" fill="#FFD34F"/><circle cx="61" cy="35" r="5" fill="#63C8F2"/><circle cx="68" cy="49" r="5" fill="#72C95A"/>',
-close:'<path d="M28 28l44 44M72 28L28 72" stroke="#5B7080" stroke-width="9" stroke-linecap="round"/>'};
+close:'<path d="M28 28l44 44M72 28L28 72" stroke="#5B7080" stroke-width="9" stroke-linecap="round"/>',
+home:'<path d="M18 46L50 18l32 28v34H61V58H39v22H18z" fill="#63C8F2" stroke="#245B78" stroke-width="5" stroke-linejoin="round"/><path d="M12 47L50 13l38 34" fill="none" stroke="#245B78" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="67" cy="30" r="7" fill="#FFD34F" stroke="#8A6A24" stroke-width="3"/>'};
 function make(id){const s=document.createElementNS(N,'svg');s.setAttribute('viewBox','0 0 100 100');s.setAttribute('aria-hidden','true');s.className.baseVal='wadfunUIIcon';s.innerHTML=P[id]||P.sparkle;return s}
-function set(b,id){if(!b)return;let i=b.querySelector(':scope > i');if(!i){i=document.createElement('i');b.insertBefore(i,b.firstChild)}i.replaceChildren(make(id));b.classList.add('wadfunIconButton')}
-function prepend(el,id){if(!el)return;let h=el.querySelector(':scope > .wadfunInlineIcon');if(!h){h=document.createElement('span');h.className='wadfunInlineIcon';el.insertBefore(h,el.firstChild)}h.replaceChildren(make(id))}
+function set(b,id){if(!b||!P[id])return;let i=b.querySelector(':scope > i');if(!i){i=document.createElement('i');b.insertBefore(i,b.firstChild)}i.replaceChildren(make(id));i.dataset.wadfunIcon=id;b.classList.add('wadfunIconButton')}
+function prepend(el,id){if(!el||!P[id])return;let h=el.querySelector(':scope > .wadfunInlineIcon');if(!h){h=document.createElement('span');h.className='wadfunInlineIcon';el.insertBefore(h,el.firstChild)}h.replaceChildren(make(id))}
 function penId(x){const t=(x?.textContent||'').toLowerCase();return t.includes('ดินสอ')?'pencil':t.includes('สีเทียน')?'crayon':t.includes('พู่กัน')?'brush':t.includes('เมจิก')||t.includes('marker')?'marker':'sparkle'}
+function byText(root,words){return[...root.querySelectorAll('button')].find(b=>{const t=(b.textContent||'').trim();return words.some(w=>t.includes(w))})}
 function render(){
  const d=document.querySelector('#draw .toolbar'),c=document.querySelector('#color .toolbar');
- if(d){const b=[...d.querySelectorAll('button')];set(b[0],'home');set(document.getElementById('penBtn'),window.__wadfunSelectedPen||penId(document.querySelector('#draw .penItem.on')));set(document.getElementById('eraserBtn'),'eraser');set(b.find(x=>(x.textContent||'').includes('ย้อนกลับ')),'undo');set(b.find(x=>(x.textContent||'').includes('ทำซ้ำ')),'redo');set(b.find(x=>(x.textContent||'').includes('ล้าง')),'clear');set(b.find(x=>(x.textContent||'').includes('เสร็จ')),'save');document.querySelectorAll('#draw .penItem').forEach(x=>{const h=x.querySelector('.penIcon');if(h)h.replaceChildren(make(penId(x)))})}
- if(c){const b=[...c.querySelectorAll('button')];set(b[0],'home');set(document.getElementById('bucketBtn'),'bucket');set(document.getElementById('colorPenBtn'),'crayon');set(document.getElementById('colorEraseBtn'),'eraser');set(b.find(x=>(x.textContent||'').includes('ย้อนกลับ')),'undo');set(b.find(x=>(x.textContent||'').includes('เริ่มใหม่')),'reset');set(b.find(x=>(x.textContent||'').includes('เสร็จ')),'save')}
+ if(d){const b=[...d.querySelectorAll('button')];set(b[0],'home');set(document.getElementById('penBtn'),window.__wadfunSelectedPen||penId(document.querySelector('#draw .penItem.on')));set(document.getElementById('eraserBtn'),'eraser');set(byText(d,['ย้อนกลับ']),'undo');set(byText(d,['ทำซ้ำ']),'redo');set(byText(d,['ล้าง']),'clear');set(byText(d,['เสร็จ']),'save');document.querySelectorAll('#draw .penItem').forEach(x=>{const h=x.querySelector('.penIcon');if(h)h.replaceChildren(make(penId(x)))})}
+ if(c){const b=[...c.querySelectorAll('button')];set(b[0],'home');set(document.getElementById('bucketBtn'),'bucket');set(document.getElementById('colorPenBtn'),'crayon');set(document.getElementById('colorEraseBtn'),'eraser');set(byText(c,['ย้อนกลับ']),'undo');set(byText(c,['ทำซ้ำ']),'redo');set(byText(c,['เริ่มใหม่']),'reset');set(byText(c,['เสร็จ']),'save')}
  const t=[...document.querySelectorAll('.topBtns .roundBtn')];set(t[0],'globe');set(t[1],'settings');
  document.querySelectorAll('.sideMenu .woodBtn').forEach(b=>{const t=b.textContent||'';prepend(b,t.includes('แกลเลอรี')?'gallery':t.includes('ผลงาน')?'parent':'help')});
  document.querySelectorAll('.back').forEach(b=>prepend(b,'home'));
