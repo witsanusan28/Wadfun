@@ -3,7 +3,7 @@
 'use strict';
 window.pinchZoom=function(){};
 window.wadfunDisablePinch=true;
-/* UI icon system is presentation-only and loads after DOM is ready. */
-function loadUIIcons(){if(document.querySelector('script[data-wadfun-ui-icons]'))return;const s=document.createElement('script');s.src='wadfun-ui-icons.js';s.async=false;s.dataset.wadfunUiIcons='1';document.body?document.body.appendChild(s):document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(s),{once:true})}
-loadUIIcons();
+function loadScript(src,attr){if(document.querySelector('script['+attr+']'))return;const s=document.createElement('script');s.src=src;s.async=false;s.setAttribute(attr,'1');document.body?document.body.appendChild(s):document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(s),{once:true})}
+loadScript('wadfun-ui-icons.js','data-wadfun-ui-icons');
+loadScript('home-art.js','data-wadfun-home-art');
 })();
