@@ -1,205 +1,76 @@
-/* Wadfun pen rendering engine V12 — physical material brush engine */
+/* Wadfun pen rendering engine V13 — material-first brush engine */
 (function(){
 'use strict';
-
 const strokeState=new WeakMap();
-
-function wadfunCurrentDrawColor(){
-  return (typeof selectedColor==='string'&&selectedColor)||'#e53935';
+function color(){return(typeof selectedColor==='string'&&selectedColor)||'#e53935'}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function noise(n){const x=Math.sin(n*12.9898)*43758.5453;return x-Math.floor(x)}
+function reset(c){strokeState.delete(c)}
+function seg(ctx,a,b){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke()}
+function dab(ctx,p,r,a){ctx.globalAlpha=a;ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fill()}
+function drawMaterial(c,ctx,p){
+ const s=strokeState.get(c)||{p:{x:p.x,y:p.y},dist:0,seed:Math.random()*1e5};
+ const a=s.p,dx=p.x-a.x,dy=p.y-a.y,len=Math.max(.001,Math.hypot(dx,dy));
+ const scale=Math.min(devicePixelRatio||1,2),base=(drawMode==='eraser'?eraserSize:drawSize)*scale;
+ const eventPressure=typeof p.pressure==='number'&&p.pressure>0?p.pressure:.5;
+ const speed=Math.min(1,len/Math.max(1,base*2));
+ const pressure=clamp(.55+eventPressure*.45-speed*.18,.35,1);
+ const nX=-dy/len,nY=dx/len,shade=color();
+ ctx.globalCompositeOperation=drawMode==='eraser'?'destination-out':'source-over';
+ ctx.lineCap='round';ctx.lineJoin='round';ctx.setLineDash([]);ctx.globalAlpha=1;ctx.fillStyle=shade;ctx.strokeStyle=shade;
+ if(drawMode==='pencil'){
+   const w=Math.max(1.1,base*.58*(.72+.45*pressure));
+   ctx.lineWidth=w;ctx.globalAlpha=.42+.18*pressure;seg(ctx,a,p);
+   const passes=3;
+   for(let k=0;k<passes;k++){
+     const off=(noise(s.seed+s.dist+k*19)-.5)*w*.9;
+     ctx.lineWidth=Math.max(.45,w*(.10+.04*noise(s.seed+k*7)));
+     ctx.globalAlpha=.07+.08*noise(s.seed+s.dist+k*3);
+     ctx.beginPath();ctx.moveTo(a.x+nX*off,a.y+nY*off);ctx.lineTo(p.x+nX*off,p.y+nY*off);ctx.stroke();
+   }
+ }else if(drawMode==='crayon'){
+   const w=Math.max(2,base*1.08*(.9+.12*pressure));
+   ctx.lineWidth=w;ctx.globalAlpha=.34+.12*pressure;seg(ctx,a,p);
+   for(let k=0;k<5;k++){
+     const off=(noise(s.seed+s.dist+k*11)-.5)*w*.9;
+     const jitter=(noise(s.seed+s.dist+k*17)-.5)*w*.22;
+     ctx.lineWidth=Math.max(.8,w*(.08+.07*noise(s.seed+k)));ctx.globalAlpha=.045+.045*noise(s.seed+s.dist+k);
+     ctx.beginPath();ctx.moveTo(a.x+nX*off+dx*.08,a.y+nY*off+dy*.08);ctx.lineTo(p.x+nX*off+jitter,p.y+nY*off+jitter);ctx.stroke();
+   }
+ }else if(drawMode==='brush'){
+   const w=Math.max(2,base*(.68+.55*pressure));
+   ctx.lineWidth=w;ctx.globalAlpha=.62+.18*pressure;seg(ctx,a,p);
+   for(let k=-4;k<=4;k++){
+     const t=k/4,off=t*w*.34,wig=(noise(s.seed+s.dist+k*23)-.5)*w*.12;
+     ctx.lineWidth=Math.max(.55,w*(.035+.045*(1-Math.abs(t))));ctx.globalAlpha=.045+.055*(1-Math.abs(t));
+     ctx.beginPath();ctx.moveTo(a.x+nX*off+dx*.03,a.y+nY*off+dy*.03);ctx.lineTo(p.x+nX*(off+wig),p.y+nY*(off+wig));ctx.stroke();
+   }
+ }else if(drawMode==='marker'){
+   const w=Math.max(3,base*1.16);
+   ctx.lineWidth=w*1.16;ctx.globalAlpha=.10;seg(ctx,a,p);
+   ctx.lineWidth=w;ctx.globalAlpha=.88;seg(ctx,a,p);
+   ctx.lineWidth=Math.max(1,w*.10);ctx.globalAlpha=.10;ctx.strokeStyle='#fff';
+   ctx.beginPath();ctx.moveTo(a.x+nX*w*.20,a.y+nY*w*.20);ctx.lineTo(p.x+nX*w*.20,p.y+nY*w*.20);ctx.stroke();
+ }else if(drawMode==='sparkle'){
+   const w=Math.max(2,base*.72);ctx.lineWidth=w;ctx.globalAlpha=.72;seg(ctx,a,p);
+   const every=Math.max(70,base*7),from=s.dist,to=s.dist+len;
+   if(Math.floor(to/every)>Math.floor(from/every)){
+     const d=(Math.floor(to/every)+.5)*every, t=clamp((d-from)/len,0,1),px=a.x+dx*t,py=a.y+dy*t,sx=base*.34;
+     ctx.strokeStyle='#fff';ctx.globalAlpha=.88;ctx.lineWidth=Math.max(1,base*.075);ctx.beginPath();ctx.moveTo(px-sx,py);ctx.lineTo(px+sx,py);ctx.moveTo(px,py-sx);ctx.lineTo(px,py+sx);ctx.stroke();
+     ctx.globalAlpha=.35;ctx.beginPath();ctx.arc(px,py,base*.16,0,Math.PI*2);ctx.fill();
+   }
+ }else{
+   ctx.lineWidth=base;ctx.globalAlpha=1;seg(ctx,a,p);
+ }
+ s.p={x:p.x,y:p.y};s.dist+=len;strokeState.set(c,s);
+ ctx.globalAlpha=1;ctx.setLineDash([]);ctx.lineDashOffset=0;ctx.globalCompositeOperation='source-over';
 }
-
-function resetStroke(c){
-  strokeState.delete(c);
+function bindDraw(c,ctx){
+ if(!c||c.dataset.wadfunPenBound==='1')return;c.dataset.wadfunPenBound='1';
+ const end=e=>{if(e&&e.pointerId!=null&&c.hasPointerCapture?.(e.pointerId)){try{c.releasePointerCapture(e.pointerId)}catch(_){}}isDrawing=false;reset(c)};
+ c.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'){const st=typeof pinchMap!=='undefined'&&pinchMap.get(document.getElementById('drawViewport'));if(st&&st.touches&&st.touches.size)return}e.preventDefault();isDrawing=true;saveDrawState();try{c.setPointerCapture(e.pointerId)}catch(_){}const q=pos(c,e);q.pressure=e.pressure;reset(c);drawMaterial(c,ctx,q)},{passive:false});
+ c.addEventListener('pointermove',e=>{if(!isDrawing)return;e.preventDefault();const q=pos(c,e);q.pressure=e.pressure;drawMaterial(c,ctx,q)},{passive:false});
+ c.addEventListener('pointerup',end,{passive:false});c.addEventListener('pointercancel',end,{passive:false});c.addEventListener('lostpointercapture',end,{passive:true});window.addEventListener('blur',()=>end(),{passive:true});
 }
-
-function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
-
-function hash01(n){
-  const x=Math.sin(n*12.9898)*43758.5453;
-  return x-Math.floor(x);
-}
-
-function segment(x,a,b){
-  x.beginPath();
-  x.moveTo(a.x,a.y);
-  x.lineTo(b.x,b.y);
-  x.stroke();
-}
-
-function dot(x,p,r,fill,alpha){
-  x.fillStyle=fill;
-  x.globalAlpha=alpha;
-  x.beginPath();
-  x.arc(p.x,p.y,r,0,Math.PI*2);
-  x.fill();
-}
-
-function wadfunStrokePoint(c,x,p){
-  const state=strokeState.get(c)||{p,dist:0,seed:Math.random()*100000};
-  const prev=state.p;
-  const dx=p.x-prev.x;
-  const dy=p.y-prev.y;
-  const len=Math.max(0.001,Math.hypot(dx,dy));
-  const base=(drawMode==='eraser'?eraserSize:drawSize)*Math.min(devicePixelRatio||1,2);
-  const speed=clamp(len/Math.max(1,base*1.6),0,1);
-  const pressure=1-speed*.38;
-  const shade=wadfunCurrentDrawColor();
-
-  x.globalCompositeOperation=drawMode==='eraser'?'destination-out':'source-over';
-  x.lineCap='round';
-  x.lineJoin='round';
-  x.setLineDash([]);
-  x.globalAlpha=1;
-
-  if(drawMode==='pencil'){
-    const w=Math.max(1.2,base*.62*pressure);
-    x.strokeStyle=shade;
-    x.globalAlpha=.36;
-    x.lineWidth=w;
-    segment(x,prev,p);
-
-    // Continuous-looking graphite grain; dash phase follows the stroke distance.
-    x.globalAlpha=.12;
-    x.lineWidth=Math.max(.7,w*.20);
-    x.setLineDash([1.2,4.2]);
-    x.lineDashOffset=-state.dist;
-    segment(x,prev,p);
-  }
-  else if(drawMode==='crayon'){
-    const w=Math.max(2,base*1.08);
-    x.strokeStyle=shade;
-    x.globalAlpha=.46;
-    x.lineWidth=w;
-    segment(x,prev,p);
-
-    // A sparse, deterministic pigment grain layer instead of hard repeating dashes.
-    const nx=-dy/len,ny=dx/len;
-    const grainCount=Math.max(1,Math.ceil(len/Math.max(5,base*.7)));
-    for(let i=0;i<grainCount;i++){
-      const t=(i+.37)/grainCount;
-      const g=hash01(state.seed+state.dist+i*7.31);
-      if(g<.55)continue;
-      const px=prev.x+dx*t+nx*(g-.5)*w*.55;
-      const py=prev.y+dy*t+ny*(g-.5)*w*.55;
-      dot(x,{x:px,y:py},Math.max(.7,w*.07),shade,.12);
-    }
-  }
-  else if(drawMode==='brush'){
-    const w=Math.max(2,base*.82*(.78+.42*pressure));
-    x.strokeStyle=shade;
-    x.globalAlpha=.72;
-    x.lineWidth=w;
-    segment(x,prev,p);
-
-    // Bristles are distributed perpendicular to the stroke direction.
-    const nx=-dy/len,ny=dx/len;
-    for(let i=-3;i<=3;i++){
-      const offset=i*w*.12;
-      x.globalAlpha=.075+(.025*(3-Math.abs(i)));
-      x.lineWidth=Math.max(.65,w*.075);
-      x.beginPath();
-      x.moveTo(prev.x+nx*offset,prev.y+ny*offset);
-      x.lineTo(p.x+nx*offset, p.y+ny*offset);
-      x.stroke();
-    }
-  }
-  else if(drawMode==='marker'){
-    const w=Math.max(3,base*1.18);
-    x.strokeStyle=shade;
-    x.globalAlpha=.14;
-    x.lineWidth=w*1.24;
-    segment(x,prev,p);
-    x.globalAlpha=.94;
-    x.lineWidth=w;
-    segment(x,prev,p);
-    x.globalAlpha=.11;
-    x.strokeStyle='#fff';
-    x.lineWidth=Math.max(1,w*.11);
-    segment(x,prev,p);
-  }
-  else if(drawMode==='sparkle'){
-    const w=Math.max(2,base*.72);
-    x.strokeStyle=shade;
-    x.globalAlpha=.60;
-    x.lineWidth=w;
-    segment(x,prev,p);
-
-    // Deterministic particles prevent the same stroke from flickering differently
-    // when the browser emits pointer events at different rates.
-    const count=Math.max(1,Math.ceil(len/Math.max(5,base*.55)));
-    for(let i=0;i<count;i++){
-      const t=(i+.5)/count;
-      const px=prev.x+dx*t;
-      const py=prev.y+dy*t;
-      const r1=hash01(state.seed+state.dist+i*3.17);
-      const r2=hash01(state.seed+state.dist+i*5.91);
-      if(r1<.48)dot(x,{x:px+dx*.04*(r2-.5),y:py+dy*.04*(r2-.5)},Math.max(.7,base*.09),shade,.42);
-      if(r2>.90){
-        x.strokeStyle='#fff';
-        x.globalAlpha=.78;
-        x.lineWidth=Math.max(1,base*.07);
-        const s=base*.20;
-        x.beginPath();
-        x.moveTo(px-s,py);x.lineTo(px+s,py);
-        x.moveTo(px,py-s);x.lineTo(px,py+s);
-        x.stroke();
-      }
-    }
-  }
-  else{
-    x.strokeStyle=shade;
-    x.lineWidth=base;
-    segment(x,prev,p);
-  }
-
-  state.p={x:p.x,y:p.y};
-  state.dist+=len;
-  strokeState.set(c,state);
-  x.globalAlpha=1;
-  x.setLineDash([]);
-  x.lineDashOffset=0;
-  x.globalCompositeOperation='source-over';
-}
-
-function bindDraw(c,x){
-  if(!c||c.dataset.wadfunPenBound==='1')return;
-  c.dataset.wadfunPenBound='1';
-
-  const endStroke=e=>{
-    if(e&&e.pointerId!=null&&c.hasPointerCapture?.(e.pointerId)){
-      try{c.releasePointerCapture(e.pointerId)}catch(_){ }
-    }
-    isDrawing=false;
-    resetStroke(c);
-  };
-
-  c.addEventListener('pointerdown',e=>{
-    if(e.pointerType==='touch'){
-      const st=typeof pinchMap!=='undefined'&&pinchMap.get(document.getElementById('drawViewport'));
-      if(st&&st.touches&&st.touches.size)return;
-    }
-    e.preventDefault();
-    isDrawing=true;
-    saveDrawState();
-    try{c.setPointerCapture(e.pointerId)}catch(_){ }
-    const p=pos(c,e);
-    resetStroke(c);
-    wadfunStrokePoint(c,x,p);
-  },{passive:false});
-
-  c.addEventListener('pointermove',e=>{
-    if(!isDrawing)return;
-    e.preventDefault();
-    wadfunStrokePoint(c,x,pos(c,e));
-  },{passive:false});
-
-  c.addEventListener('pointerup',endStroke,{passive:false});
-  c.addEventListener('pointercancel',endStroke,{passive:false});
-  c.addEventListener('lostpointercapture',endStroke,{passive:true});
-  window.addEventListener('blur',()=>endStroke(),{passive:true});
-}
-
-window.wadfunStrokePoint=wadfunStrokePoint;
-window.wadfunResetStrokeState=resetStroke;
-window.bindDraw=bindDraw;
+window.wadfunStrokePoint=drawMaterial;window.wadfunResetStrokeState=reset;window.bindDraw=bindDraw;
 })();
